@@ -1,4 +1,4 @@
-(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.habiticaMarkdown = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.habiticaMarkdown = f()}})(function(){var define,module,exports;return (function(){function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s}return e})()({1:[function(require,module,exports){
 'use strict';
 
 var markdownit = require('markdown-it');
@@ -414,14 +414,13 @@ function compile(self) {
                       .map(escapeRE)
                       .join('|');
   // (?!_) cause 1.5x slowdown
-  self.re.schema_test   = RegExp('(^|(?!_)(?:[><]|' + re.src_ZPCc + '))(' + slist + ')', 'i');
-  self.re.schema_search = RegExp('(^|(?!_)(?:[><]|' + re.src_ZPCc + '))(' + slist + ')', 'ig');
+  self.re.schema_test   = RegExp('(^|(?!_)(?:[><\uff5c]|' + re.src_ZPCc + '))(' + slist + ')', 'i');
+  self.re.schema_search = RegExp('(^|(?!_)(?:[><\uff5c]|' + re.src_ZPCc + '))(' + slist + ')', 'ig');
 
-  self.re.pretest       = RegExp(
-                            '(' + self.re.schema_test.source + ')|' +
-                            '(' + self.re.host_fuzzy_test.source + ')|' +
-                            '@',
-                            'i');
+  self.re.pretest = RegExp(
+    '(' + self.re.schema_test.source + ')|(' + self.re.host_fuzzy_test.source + ')|@',
+    'i'
+  );
 
   //
   // Cleanup
@@ -815,10 +814,14 @@ module.exports = function (opts) {
   // \p{\Z\Cc} (white spaces + control)
   re.src_ZCc = [ re.src_Z, re.src_Cc ].join('|');
 
+  // Experimental. List of chars, completely prohibited in links
+  // because can separate it from other part of text
+  var text_separators = '[><\uff5c]';
+
   // All possible word characters (everything without punctuation, spaces & controls)
   // Defined via punctuation & spaces to save space
   // Should be something like \p{\L\N\S\M} (\w but without `_`)
-  re.src_pseudo_letter       = '(?:(?!>|<|' + re.src_ZPCc + ')' + re.src_Any + ')';
+  re.src_pseudo_letter       = '(?:(?!' + text_separators + '|' + re.src_ZPCc + ')' + re.src_Any + ')';
   // The same as abothe but without [0-9]
   // var src_pseudo_letter_non_d = '(?:(?![0-9]|' + src_ZPCc + ')' + src_Any + ')';
 
@@ -828,8 +831,8 @@ module.exports = function (opts) {
 
     '(?:(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)';
 
-  // Prohibit [@/] in user/pass to avoid wrong domain fetch.
-  re.src_auth    = '(?:(?:(?!' + re.src_ZCc + '|[@/]).)+@)?';
+  // Prohibit any of "@/[]()" in user/pass to avoid wrong domain fetch.
+  re.src_auth    = '(?:(?:(?!' + re.src_ZCc + '|[@/\\[\\]()]).)+@)?';
 
   re.src_port =
 
@@ -837,14 +840,14 @@ module.exports = function (opts) {
 
   re.src_host_terminator =
 
-    '(?=$|>|<|' + re.src_ZPCc + ')(?!-|_|:\\d|\\.-|\\.(?!$|' + re.src_ZPCc + '))';
+    '(?=$|' + text_separators + '|' + re.src_ZPCc + ')(?!-|_|:\\d|\\.-|\\.(?!$|' + re.src_ZPCc + '))';
 
   re.src_path =
 
     '(?:' +
       '[/?#]' +
         '(?:' +
-          '(?!' + re.src_ZCc + '|[()[\\]{}.,"\'?!\\-<>]).|' +
+          '(?!' + re.src_ZCc + '|' + text_separators + '|[()[\\]{}.,"\'?!\\-]).|' +
           '\\[(?:(?!' + re.src_ZCc + '|\\]).)*\\]|' +
           '\\((?:(?!' + re.src_ZCc + '|[)]).)*\\)|' +
           '\\{(?:(?!' + re.src_ZCc + '|[}]).)*\\}|' +
@@ -859,7 +862,7 @@ module.exports = function (opts) {
           '\\.(?!' + re.src_ZCc + '|[.]).|' +
           (opts && opts['---'] ?
             '\\-(?!--(?:[^-]|$))(?:-*)|' // `---` => long dash, terminate
-          :
+            :
             '\\-+|'
           ) +
           '\\,(?!' + re.src_ZCc + ').|' +      // allow `,,,` in paths
@@ -896,10 +899,7 @@ module.exports = function (opts) {
       '|' +
       '(?:' + re.src_pseudo_letter + ')' +
       '|' +
-      // don't allow `--` in domain names, because:
-      // - that can conflict with markdown &mdash; / &ndash;
-      // - nobody use those anyway
-      '(?:' + re.src_pseudo_letter + '(?:-(?!-)|' + re.src_pseudo_letter + '){0,61}' + re.src_pseudo_letter + ')' +
+      '(?:' + re.src_pseudo_letter + '(?:-|' + re.src_pseudo_letter + '){0,61}' + re.src_pseudo_letter + ')' +
     ')';
 
   re.src_host =
@@ -908,7 +908,7 @@ module.exports = function (opts) {
     // Don't need IP check, because digits are already allowed in normal domain names
     //   src_ip4 +
     // '|' +
-      '(?:(?:(?:' + re.src_domain + ')\\.)*' + re.src_domain_root + ')' +
+      '(?:(?:(?:' + re.src_domain + ')\\.)*' + re.src_domain/*_root*/ + ')' +
     ')';
 
   re.tpl_host_fuzzy =
@@ -954,19 +954,19 @@ module.exports = function (opts) {
 
   re.tpl_email_fuzzy =
 
-      '(^|<|>|\\(|' + re.src_ZCc + ')(' + re.src_email_name + '@' + re.tpl_host_fuzzy_strict + ')';
+      '(^|' + text_separators + '|\\(|' + re.src_ZCc + ')(' + re.src_email_name + '@' + re.tpl_host_fuzzy_strict + ')';
 
   re.tpl_link_fuzzy =
       // Fuzzy link can't be prepended with .:/\- and non punctuation.
       // but can start with > (markdown blockquote)
-      '(^|(?![.:/\\-_@])(?:[$+<=>^`|]|' + re.src_ZPCc + '))' +
-      '((?![$+<=>^`|])' + re.tpl_host_port_fuzzy_strict + re.src_path + ')';
+      '(^|(?![.:/\\-_@])(?:[$+<=>^`|\uff5c]|' + re.src_ZPCc + '))' +
+      '((?![$+<=>^`|\uff5c])' + re.tpl_host_port_fuzzy_strict + re.src_path + ')';
 
   re.tpl_link_no_ip_fuzzy =
       // Fuzzy link can't be prepended with .:/\- and non punctuation.
       // but can start with > (markdown blockquote)
-      '(^|(?![.:/\\-_@])(?:[$+<=>^`|]|' + re.src_ZPCc + '))' +
-      '((?![$+<=>^`|])' + re.tpl_host_port_no_ip_fuzzy_strict + re.src_path + ')';
+      '(^|(?![.:/\\-_@])(?:[$+<=>^`|\uff5c]|' + re.src_ZPCc + '))' +
+      '((?![$+<=>^`|\uff5c])' + re.tpl_host_port_no_ip_fuzzy_strict + re.src_path + ')';
 
   return re;
 };
@@ -1000,666 +1000,1099 @@ module.exports = function emoji_plugin(md, options) {
 module.exports={
   "100": "💯",
   "1234": "🔢",
-  "smile": "😄",
-  "smiley": "😃",
   "grinning": "😀",
-  "blush": "😊",
+  "smiley": "😃",
+  "smile": "😄",
+  "grin": "😁",
+  "laughing": "😆",
+  "satisfied": "😆",
+  "sweat_smile": "😅",
+  "joy": "😂",
+  "rofl": "🤣",
   "relaxed": "☺️",
+  "blush": "😊",
+  "innocent": "😇",
+  "slightly_smiling_face": "🙂",
+  "upside_down_face": "🙃",
   "wink": "😉",
+  "relieved": "😌",
   "heart_eyes": "😍",
   "kissing_heart": "😘",
-  "kissing_closed_eyes": "😚",
   "kissing": "😗",
   "kissing_smiling_eyes": "😙",
+  "kissing_closed_eyes": "😚",
+  "yum": "😋",
   "stuck_out_tongue_winking_eye": "😜",
   "stuck_out_tongue_closed_eyes": "😝",
   "stuck_out_tongue": "😛",
-  "flushed": "😳",
-  "grin": "😁",
-  "pensive": "😔",
-  "relieved": "😌",
+  "money_mouth_face": "🤑",
+  "hugs": "🤗",
+  "nerd_face": "🤓",
+  "sunglasses": "😎",
+  "clown_face": "🤡",
+  "cowboy_hat_face": "🤠",
+  "smirk": "😏",
   "unamused": "😒",
   "disappointed": "😞",
+  "pensive": "😔",
+  "worried": "😟",
+  "confused": "😕",
+  "slightly_frowning_face": "🙁",
+  "frowning_face": "☹️",
   "persevere": "😣",
-  "cry": "😢",
-  "joy": "😂",
-  "sob": "😭",
-  "sleepy": "😪",
-  "disappointed_relieved": "😥",
-  "cold_sweat": "😰",
-  "sweat_smile": "😅",
-  "sweat": "😓",
-  "weary": "😩",
+  "confounded": "😖",
   "tired_face": "😫",
-  "fearful": "😨",
-  "scream": "😱",
+  "weary": "😩",
+  "triumph": "😤",
   "angry": "😠",
   "rage": "😡",
-  "triumph": "😤",
-  "confounded": "😖",
-  "laughing": "😆",
-  "satisfied": "😆",
-  "yum": "😋",
-  "mask": "😷",
-  "sunglasses": "😎",
-  "sleeping": "😴",
-  "dizzy_face": "😵",
-  "astonished": "😲",
-  "worried": "😟",
+  "pout": "😡",
+  "no_mouth": "😶",
+  "neutral_face": "😐",
+  "expressionless": "😑",
+  "hushed": "😯",
   "frowning": "😦",
   "anguished": "😧",
+  "open_mouth": "😮",
+  "astonished": "😲",
+  "dizzy_face": "😵",
+  "flushed": "😳",
+  "scream": "😱",
+  "fearful": "😨",
+  "cold_sweat": "😰",
+  "cry": "😢",
+  "disappointed_relieved": "😥",
+  "drooling_face": "🤤",
+  "sob": "😭",
+  "sweat": "😓",
+  "sleepy": "😪",
+  "sleeping": "😴",
+  "roll_eyes": "🙄",
+  "thinking": "🤔",
+  "lying_face": "🤥",
+  "grimacing": "😬",
+  "zipper_mouth_face": "🤐",
+  "nauseated_face": "🤢",
+  "sneezing_face": "🤧",
+  "mask": "😷",
+  "face_with_thermometer": "🤒",
+  "face_with_head_bandage": "🤕",
   "smiling_imp": "😈",
   "imp": "👿",
-  "open_mouth": "😮",
-  "grimacing": "😬",
-  "neutral_face": "😐",
-  "confused": "😕",
-  "hushed": "😯",
-  "no_mouth": "😶",
-  "innocent": "😇",
-  "smirk": "😏",
-  "expressionless": "😑",
-  "man_with_gua_pi_mao": "👲",
-  "man_with_turban": "👳",
-  "cop": "👮",
-  "construction_worker": "👷",
-  "guardsman": "💂",
+  "japanese_ogre": "👹",
+  "japanese_goblin": "👺",
+  "hankey": "💩",
+  "poop": "💩",
+  "shit": "💩",
+  "ghost": "👻",
+  "skull": "💀",
+  "skull_and_crossbones": "☠️",
+  "alien": "👽",
+  "space_invader": "👾",
+  "robot": "🤖",
+  "jack_o_lantern": "🎃",
+  "smiley_cat": "😺",
+  "smile_cat": "😸",
+  "joy_cat": "😹",
+  "heart_eyes_cat": "😻",
+  "smirk_cat": "😼",
+  "kissing_cat": "😽",
+  "scream_cat": "🙀",
+  "crying_cat_face": "😿",
+  "pouting_cat": "😾",
+  "open_hands": "👐",
+  "raised_hands": "🙌",
+  "clap": "👏",
+  "pray": "🙏",
+  "handshake": "🤝",
+  "+1": "👍",
+  "thumbsup": "👍",
+  "-1": "👎",
+  "thumbsdown": "👎",
+  "fist_oncoming": "👊",
+  "facepunch": "👊",
+  "punch": "👊",
+  "fist_raised": "✊",
+  "fist": "✊",
+  "fist_left": "🤛",
+  "fist_right": "🤜",
+  "crossed_fingers": "🤞",
+  "v": "✌️",
+  "metal": "🤘",
+  "ok_hand": "👌",
+  "point_left": "👈",
+  "point_right": "👉",
+  "point_up_2": "👆",
+  "point_down": "👇",
+  "point_up": "☝️",
+  "hand": "✋",
+  "raised_hand": "✋",
+  "raised_back_of_hand": "🤚",
+  "raised_hand_with_fingers_splayed": "🖐",
+  "vulcan_salute": "🖖",
+  "wave": "👋",
+  "call_me_hand": "🤙",
+  "muscle": "💪",
+  "middle_finger": "🖕",
+  "fu": "🖕",
+  "writing_hand": "✍️",
+  "selfie": "🤳",
+  "nail_care": "💅",
+  "ring": "💍",
+  "lipstick": "💄",
+  "kiss": "💋",
+  "lips": "👄",
+  "tongue": "👅",
+  "ear": "👂",
+  "nose": "👃",
+  "footprints": "👣",
+  "eye": "👁",
+  "eyes": "👀",
+  "speaking_head": "🗣",
+  "bust_in_silhouette": "👤",
+  "busts_in_silhouette": "👥",
   "baby": "👶",
   "boy": "👦",
   "girl": "👧",
   "man": "👨",
   "woman": "👩",
+  "blonde_woman": "👱‍♀",
+  "blonde_man": "👱",
+  "person_with_blond_hair": "👱",
   "older_man": "👴",
   "older_woman": "👵",
-  "person_with_blond_hair": "👱",
-  "angel": "👼",
+  "man_with_gua_pi_mao": "👲",
+  "woman_with_turban": "👳‍♀",
+  "man_with_turban": "👳",
+  "policewoman": "👮‍♀",
+  "policeman": "👮",
+  "cop": "👮",
+  "construction_worker_woman": "👷‍♀",
+  "construction_worker_man": "👷",
+  "construction_worker": "👷",
+  "guardswoman": "💂‍♀",
+  "guardsman": "💂",
+  "female_detective": "🕵️‍♀️",
+  "male_detective": "🕵",
+  "detective": "🕵",
+  "woman_health_worker": "👩‍⚕",
+  "man_health_worker": "👨‍⚕",
+  "woman_farmer": "👩‍🌾",
+  "man_farmer": "👨‍🌾",
+  "woman_cook": "👩‍🍳",
+  "man_cook": "👨‍🍳",
+  "woman_student": "👩‍🎓",
+  "man_student": "👨‍🎓",
+  "woman_singer": "👩‍🎤",
+  "man_singer": "👨‍🎤",
+  "woman_teacher": "👩‍🏫",
+  "man_teacher": "👨‍🏫",
+  "woman_factory_worker": "👩‍🏭",
+  "man_factory_worker": "👨‍🏭",
+  "woman_technologist": "👩‍💻",
+  "man_technologist": "👨‍💻",
+  "woman_office_worker": "👩‍💼",
+  "man_office_worker": "👨‍💼",
+  "woman_mechanic": "👩‍🔧",
+  "man_mechanic": "👨‍🔧",
+  "woman_scientist": "👩‍🔬",
+  "man_scientist": "👨‍🔬",
+  "woman_artist": "👩‍🎨",
+  "man_artist": "👨‍🎨",
+  "woman_firefighter": "👩‍🚒",
+  "man_firefighter": "👨‍🚒",
+  "woman_pilot": "👩‍✈",
+  "man_pilot": "👨‍✈",
+  "woman_astronaut": "👩‍🚀",
+  "man_astronaut": "👨‍🚀",
+  "woman_judge": "👩‍⚖",
+  "man_judge": "👨‍⚖",
+  "mrs_claus": "🤶",
+  "santa": "🎅",
   "princess": "👸",
-  "smiley_cat": "😺",
-  "smile_cat": "😸",
-  "heart_eyes_cat": "😻",
-  "kissing_cat": "😽",
-  "smirk_cat": "😼",
-  "scream_cat": "🙀",
-  "crying_cat_face": "😿",
-  "joy_cat": "😹",
-  "pouting_cat": "😾",
-  "japanese_ogre": "👹",
-  "japanese_goblin": "👺",
-  "see_no_evil": "🙈",
-  "hear_no_evil": "🙉",
-  "speak_no_evil": "🙊",
-  "skull": "💀",
-  "alien": "👽",
-  "hankey": "💩",
-  "poop": "💩",
-  "shit": "💩",
-  "fire": "🔥",
-  "sparkles": "✨",
-  "star2": "🌟",
-  "dizzy": "💫",
-  "boom": "💥",
-  "collision": "💥",
-  "anger": "💢",
-  "sweat_drops": "💦",
-  "droplet": "💧",
-  "zzz": "💤",
-  "dash": "💨",
-  "ear": "👂",
-  "eyes": "👀",
-  "nose": "👃",
-  "tongue": "👅",
-  "lips": "👄",
-  "+1": "👍",
-  "thumbsup": "👍",
-  "-1": "👎",
-  "thumbsdown": "👎",
-  "ok_hand": "👌",
-  "facepunch": "👊",
-  "punch": "👊",
-  "fist": "✊",
-  "v": "✌️",
-  "wave": "👋",
-  "hand": "✋",
-  "raised_hand": "✋",
-  "open_hands": "👐",
-  "point_up_2": "👆",
-  "point_down": "👇",
-  "point_right": "👉",
-  "point_left": "👈",
-  "raised_hands": "🙌",
-  "pray": "🙏",
-  "point_up": "☝️",
-  "clap": "👏",
-  "muscle": "💪",
+  "prince": "🤴",
+  "bride_with_veil": "👰",
+  "man_in_tuxedo": "🤵",
+  "angel": "👼",
+  "pregnant_woman": "🤰",
+  "bowing_woman": "🙇‍♀",
+  "bowing_man": "🙇",
+  "bow": "🙇",
+  "tipping_hand_woman": "💁",
+  "information_desk_person": "💁",
+  "sassy_woman": "💁",
+  "tipping_hand_man": "💁‍♂",
+  "sassy_man": "💁‍♂",
+  "no_good_woman": "🙅",
+  "no_good": "🙅",
+  "ng_woman": "🙅",
+  "no_good_man": "🙅‍♂",
+  "ng_man": "🙅‍♂",
+  "ok_woman": "🙆",
+  "ok_man": "🙆‍♂",
+  "raising_hand_woman": "🙋",
+  "raising_hand": "🙋",
+  "raising_hand_man": "🙋‍♂",
+  "woman_facepalming": "🤦‍♀",
+  "man_facepalming": "🤦‍♂",
+  "woman_shrugging": "🤷‍♀",
+  "man_shrugging": "🤷‍♂",
+  "pouting_woman": "🙎",
+  "person_with_pouting_face": "🙎",
+  "pouting_man": "🙎‍♂",
+  "frowning_woman": "🙍",
+  "person_frowning": "🙍",
+  "frowning_man": "🙍‍♂",
+  "haircut_woman": "💇",
+  "haircut": "💇",
+  "haircut_man": "💇‍♂",
+  "massage_woman": "💆",
+  "massage": "💆",
+  "massage_man": "💆‍♂",
+  "business_suit_levitating": "🕴",
+  "dancer": "💃",
+  "man_dancing": "🕺",
+  "dancing_women": "👯",
+  "dancers": "👯",
+  "dancing_men": "👯‍♂",
+  "walking_woman": "🚶‍♀",
+  "walking_man": "🚶",
   "walking": "🚶",
+  "running_woman": "🏃‍♀",
+  "running_man": "🏃",
   "runner": "🏃",
   "running": "🏃",
-  "dancer": "💃",
   "couple": "👫",
-  "family": "👪",
-  "two_men_holding_hands": "👬",
   "two_women_holding_hands": "👭",
-  "couplekiss": "💏",
+  "two_men_holding_hands": "👬",
+  "couple_with_heart_woman_man": "💑",
   "couple_with_heart": "💑",
-  "dancers": "👯",
-  "ok_woman": "🙆",
-  "no_good": "🙅",
-  "information_desk_person": "💁",
-  "raising_hand": "🙋",
-  "massage": "💆",
-  "haircut": "💇",
-  "nail_care": "💅",
-  "bride_with_veil": "👰",
-  "person_with_pouting_face": "🙎",
-  "person_frowning": "🙍",
-  "bow": "🙇",
-  "tophat": "🎩",
-  "crown": "👑",
-  "womans_hat": "👒",
-  "athletic_shoe": "👟",
-  "mans_shoe": "👞",
-  "shoe": "👞",
-  "sandal": "👡",
-  "high_heel": "👠",
-  "boot": "👢",
+  "couple_with_heart_woman_woman": "👩‍❤️‍👩",
+  "couple_with_heart_man_man": "👨‍❤️‍👨",
+  "couplekiss_man_woman": "💏",
+  "couplekiss_woman_woman": "👩‍❤️‍💋‍👩",
+  "couplekiss_man_man": "👨‍❤️‍💋‍👨",
+  "family_man_woman_boy": "👪",
+  "family": "👪",
+  "family_man_woman_girl": "👨‍👩‍👧",
+  "family_man_woman_girl_boy": "👨‍👩‍👧‍👦",
+  "family_man_woman_boy_boy": "👨‍👩‍👦‍👦",
+  "family_man_woman_girl_girl": "👨‍👩‍👧‍👧",
+  "family_woman_woman_boy": "👩‍👩‍👦",
+  "family_woman_woman_girl": "👩‍👩‍👧",
+  "family_woman_woman_girl_boy": "👩‍👩‍👧‍👦",
+  "family_woman_woman_boy_boy": "👩‍👩‍👦‍👦",
+  "family_woman_woman_girl_girl": "👩‍👩‍👧‍👧",
+  "family_man_man_boy": "👨‍👨‍👦",
+  "family_man_man_girl": "👨‍👨‍👧",
+  "family_man_man_girl_boy": "👨‍👨‍👧‍👦",
+  "family_man_man_boy_boy": "👨‍👨‍👦‍👦",
+  "family_man_man_girl_girl": "👨‍👨‍👧‍👧",
+  "family_woman_boy": "👩‍👦",
+  "family_woman_girl": "👩‍👧",
+  "family_woman_girl_boy": "👩‍👧‍👦",
+  "family_woman_boy_boy": "👩‍👦‍👦",
+  "family_woman_girl_girl": "👩‍👧‍👧",
+  "family_man_boy": "👨‍👦",
+  "family_man_girl": "👨‍👧",
+  "family_man_girl_boy": "👨‍👧‍👦",
+  "family_man_boy_boy": "👨‍👦‍👦",
+  "family_man_girl_girl": "👨‍👧‍👧",
+  "womans_clothes": "👚",
   "shirt": "👕",
   "tshirt": "👕",
-  "necktie": "👔",
-  "womans_clothes": "👚",
-  "dress": "👗",
-  "running_shirt_with_sash": "🎽",
   "jeans": "👖",
-  "kimono": "👘",
+  "necktie": "👔",
+  "dress": "👗",
   "bikini": "👙",
-  "briefcase": "💼",
-  "handbag": "👜",
+  "kimono": "👘",
+  "high_heel": "👠",
+  "sandal": "👡",
+  "boot": "👢",
+  "mans_shoe": "👞",
+  "shoe": "👞",
+  "athletic_shoe": "👟",
+  "womans_hat": "👒",
+  "tophat": "🎩",
+  "mortar_board": "🎓",
+  "crown": "👑",
+  "rescue_worker_helmet": "⛑",
+  "school_satchel": "🎒",
   "pouch": "👝",
   "purse": "👛",
+  "handbag": "👜",
+  "briefcase": "💼",
   "eyeglasses": "👓",
-  "ribbon": "🎀",
+  "dark_sunglasses": "🕶",
   "closed_umbrella": "🌂",
-  "lipstick": "💄",
-  "yellow_heart": "💛",
-  "blue_heart": "💙",
-  "purple_heart": "💜",
-  "green_heart": "💚",
-  "heart": "❤️",
-  "broken_heart": "💔",
-  "heartpulse": "💗",
-  "heartbeat": "💓",
-  "two_hearts": "💕",
-  "sparkling_heart": "💖",
-  "revolving_hearts": "💞",
-  "cupid": "💘",
-  "love_letter": "💌",
-  "kiss": "💋",
-  "ring": "💍",
-  "gem": "💎",
-  "bust_in_silhouette": "👤",
-  "busts_in_silhouette": "👥",
-  "speech_balloon": "💬",
-  "footprints": "👣",
-  "thought_balloon": "💭",
+  "open_umbrella": "☂️",
   "dog": "🐶",
-  "wolf": "🐺",
   "cat": "🐱",
   "mouse": "🐭",
   "hamster": "🐹",
   "rabbit": "🐰",
-  "frog": "🐸",
-  "tiger": "🐯",
-  "koala": "🐨",
+  "fox_face": "🦊",
   "bear": "🐻",
+  "panda_face": "🐼",
+  "koala": "🐨",
+  "tiger": "🐯",
+  "lion": "🦁",
+  "cow": "🐮",
   "pig": "🐷",
   "pig_nose": "🐽",
-  "cow": "🐮",
-  "boar": "🐗",
+  "frog": "🐸",
   "monkey_face": "🐵",
+  "see_no_evil": "🙈",
+  "hear_no_evil": "🙉",
+  "speak_no_evil": "🙊",
   "monkey": "🐒",
-  "horse": "🐴",
-  "sheep": "🐑",
-  "elephant": "🐘",
-  "panda_face": "🐼",
+  "chicken": "🐔",
   "penguin": "🐧",
   "bird": "🐦",
   "baby_chick": "🐤",
-  "hatched_chick": "🐥",
   "hatching_chick": "🐣",
-  "chicken": "🐔",
-  "snake": "🐍",
-  "turtle": "🐢",
-  "bug": "🐛",
+  "hatched_chick": "🐥",
+  "duck": "🦆",
+  "eagle": "🦅",
+  "owl": "🦉",
+  "bat": "🦇",
+  "wolf": "🐺",
+  "boar": "🐗",
+  "horse": "🐴",
+  "unicorn": "🦄",
   "bee": "🐝",
   "honeybee": "🐝",
-  "ant": "🐜",
-  "beetle": "🐞",
+  "bug": "🐛",
+  "butterfly": "🦋",
   "snail": "🐌",
-  "octopus": "🐙",
   "shell": "🐚",
+  "beetle": "🐞",
+  "ant": "🐜",
+  "spider": "🕷",
+  "spider_web": "🕸",
+  "turtle": "🐢",
+  "snake": "🐍",
+  "lizard": "🦎",
+  "scorpion": "🦂",
+  "crab": "🦀",
+  "squid": "🦑",
+  "octopus": "🐙",
+  "shrimp": "🦐",
   "tropical_fish": "🐠",
   "fish": "🐟",
+  "blowfish": "🐡",
   "dolphin": "🐬",
   "flipper": "🐬",
+  "shark": "🦈",
   "whale": "🐳",
   "whale2": "🐋",
-  "cow2": "🐄",
-  "ram": "🐏",
-  "rat": "🐀",
-  "water_buffalo": "🐃",
-  "tiger2": "🐅",
-  "rabbit2": "🐇",
-  "dragon": "🐉",
-  "racehorse": "🐎",
-  "goat": "🐐",
-  "rooster": "🐓",
-  "dog2": "🐕",
-  "pig2": "🐖",
-  "mouse2": "🐁",
-  "ox": "🐂",
-  "dragon_face": "🐲",
-  "blowfish": "🐡",
   "crocodile": "🐊",
-  "camel": "🐫",
-  "dromedary_camel": "🐪",
   "leopard": "🐆",
-  "cat2": "🐈",
+  "tiger2": "🐅",
+  "water_buffalo": "🐃",
+  "ox": "🐂",
+  "cow2": "🐄",
+  "deer": "🦌",
+  "dromedary_camel": "🐪",
+  "camel": "🐫",
+  "elephant": "🐘",
+  "rhinoceros": "🦏",
+  "gorilla": "🦍",
+  "racehorse": "🐎",
+  "pig2": "🐖",
+  "goat": "🐐",
+  "ram": "🐏",
+  "sheep": "🐑",
+  "dog2": "🐕",
   "poodle": "🐩",
+  "cat2": "🐈",
+  "rooster": "🐓",
+  "turkey": "🦃",
+  "dove": "🕊",
+  "rabbit2": "🐇",
+  "mouse2": "🐁",
+  "rat": "🐀",
+  "chipmunk": "🐿",
   "feet": "🐾",
   "paw_prints": "🐾",
-  "bouquet": "💐",
-  "cherry_blossom": "🌸",
-  "tulip": "🌷",
-  "four_leaf_clover": "🍀",
-  "rose": "🌹",
-  "sunflower": "🌻",
-  "hibiscus": "🌺",
-  "maple_leaf": "🍁",
-  "leaves": "🍃",
-  "fallen_leaf": "🍂",
-  "herb": "🌿",
-  "ear_of_rice": "🌾",
-  "mushroom": "🍄",
+  "dragon": "🐉",
+  "dragon_face": "🐲",
   "cactus": "🌵",
-  "palm_tree": "🌴",
+  "christmas_tree": "🎄",
   "evergreen_tree": "🌲",
   "deciduous_tree": "🌳",
-  "chestnut": "🌰",
+  "palm_tree": "🌴",
   "seedling": "🌱",
+  "herb": "🌿",
+  "shamrock": "☘️",
+  "four_leaf_clover": "🍀",
+  "bamboo": "🎍",
+  "tanabata_tree": "🎋",
+  "leaves": "🍃",
+  "fallen_leaf": "🍂",
+  "maple_leaf": "🍁",
+  "mushroom": "🍄",
+  "ear_of_rice": "🌾",
+  "bouquet": "💐",
+  "tulip": "🌷",
+  "rose": "🌹",
+  "wilted_flower": "🥀",
+  "sunflower": "🌻",
   "blossom": "🌼",
-  "globe_with_meridians": "🌐",
-  "sun_with_face": "🌞",
-  "full_moon_with_face": "🌝",
-  "new_moon_with_face": "🌚",
+  "cherry_blossom": "🌸",
+  "hibiscus": "🌺",
+  "earth_americas": "🌎",
+  "earth_africa": "🌍",
+  "earth_asia": "🌏",
+  "full_moon": "🌕",
+  "waning_gibbous_moon": "🌖",
+  "last_quarter_moon": "🌗",
+  "waning_crescent_moon": "🌘",
   "new_moon": "🌑",
   "waxing_crescent_moon": "🌒",
   "first_quarter_moon": "🌓",
   "moon": "🌔",
   "waxing_gibbous_moon": "🌔",
-  "full_moon": "🌕",
-  "waning_gibbous_moon": "🌖",
-  "last_quarter_moon": "🌗",
-  "waning_crescent_moon": "🌘",
-  "last_quarter_moon_with_face": "🌜",
+  "new_moon_with_face": "🌚",
+  "full_moon_with_face": "🌝",
+  "sun_with_face": "🌞",
   "first_quarter_moon_with_face": "🌛",
+  "last_quarter_moon_with_face": "🌜",
   "crescent_moon": "🌙",
-  "earth_africa": "🌍",
-  "earth_americas": "🌎",
-  "earth_asia": "🌏",
-  "volcano": "🌋",
-  "milky_way": "🌌",
-  "stars": "🌠",
-  "star": "⭐",
+  "dizzy": "💫",
+  "star": "⭐️",
+  "star2": "🌟",
+  "sparkles": "✨",
+  "zap": "⚡️",
+  "fire": "🔥",
+  "boom": "💥",
+  "collision": "💥",
+  "comet": "☄",
   "sunny": "☀️",
-  "partly_sunny": "⛅",
-  "cloud": "☁️",
-  "zap": "⚡",
-  "umbrella": "☔",
-  "snowflake": "❄️",
-  "snowman": "⛄",
-  "cyclone": "🌀",
-  "foggy": "🌁",
+  "sun_behind_small_cloud": "🌤",
+  "partly_sunny": "⛅️",
+  "sun_behind_large_cloud": "🌥",
+  "sun_behind_rain_cloud": "🌦",
   "rainbow": "🌈",
+  "cloud": "☁️",
+  "cloud_with_rain": "🌧",
+  "cloud_with_lightning_and_rain": "⛈",
+  "cloud_with_lightning": "🌩",
+  "cloud_with_snow": "🌨",
+  "snowman_with_snow": "☃️",
+  "snowman": "⛄️",
+  "snowflake": "❄️",
+  "wind_face": "🌬",
+  "dash": "💨",
+  "tornado": "🌪",
+  "fog": "🌫",
   "ocean": "🌊",
-  "bamboo": "🎍",
-  "gift_heart": "💝",
-  "dolls": "🎎",
-  "school_satchel": "🎒",
-  "mortar_board": "🎓",
-  "flags": "🎏",
-  "fireworks": "🎆",
-  "sparkler": "🎇",
-  "wind_chime": "🎐",
-  "rice_scene": "🎑",
-  "jack_o_lantern": "🎃",
-  "ghost": "👻",
-  "santa": "🎅",
-  "christmas_tree": "🎄",
-  "gift": "🎁",
-  "tanabata_tree": "🎋",
-  "tada": "🎉",
-  "confetti_ball": "🎊",
-  "balloon": "🎈",
-  "crossed_flags": "🎌",
-  "crystal_ball": "🔮",
-  "movie_camera": "🎥",
-  "camera": "📷",
-  "video_camera": "📹",
-  "vhs": "📼",
-  "cd": "💿",
-  "dvd": "📀",
-  "minidisc": "💽",
-  "floppy_disk": "💾",
-  "computer": "💻",
-  "iphone": "📱",
-  "phone": "☎️",
-  "telephone": "☎️",
-  "telephone_receiver": "📞",
-  "pager": "📟",
-  "fax": "📠",
-  "satellite": "📡",
-  "tv": "📺",
-  "radio": "📻",
-  "loud_sound": "🔊",
-  "sound": "🔉",
-  "speaker": "🔈",
-  "mute": "🔇",
-  "bell": "🔔",
-  "no_bell": "🔕",
-  "loudspeaker": "📢",
-  "mega": "📣",
-  "hourglass_flowing_sand": "⏳",
-  "hourglass": "⌛",
-  "alarm_clock": "⏰",
-  "watch": "⌚",
-  "unlock": "🔓",
-  "lock": "🔒",
-  "lock_with_ink_pen": "🔏",
-  "closed_lock_with_key": "🔐",
-  "key": "🔑",
-  "mag_right": "🔎",
-  "bulb": "💡",
-  "flashlight": "🔦",
-  "high_brightness": "🔆",
-  "low_brightness": "🔅",
-  "electric_plug": "🔌",
-  "battery": "🔋",
-  "mag": "🔍",
-  "bathtub": "🛁",
-  "bath": "🛀",
-  "shower": "🚿",
-  "toilet": "🚽",
-  "wrench": "🔧",
-  "nut_and_bolt": "🔩",
-  "hammer": "🔨",
-  "door": "🚪",
-  "smoking": "🚬",
-  "bomb": "💣",
-  "gun": "🔫",
-  "hocho": "🔪",
-  "knife": "🔪",
-  "pill": "💊",
-  "syringe": "💉",
-  "moneybag": "💰",
-  "yen": "💴",
-  "dollar": "💵",
-  "pound": "💷",
-  "euro": "💶",
-  "credit_card": "💳",
-  "money_with_wings": "💸",
-  "calling": "📲",
-  "e-mail": "📧",
-  "inbox_tray": "📥",
-  "outbox_tray": "📤",
-  "email": "✉️",
-  "envelope": "✉️",
-  "envelope_with_arrow": "📩",
-  "incoming_envelope": "📨",
-  "postal_horn": "📯",
-  "mailbox": "📫",
-  "mailbox_closed": "📪",
-  "mailbox_with_mail": "📬",
-  "mailbox_with_no_mail": "📭",
-  "postbox": "📮",
-  "package": "📦",
-  "memo": "📝",
-  "pencil": "📝",
-  "page_facing_up": "📄",
-  "page_with_curl": "📃",
-  "bookmark_tabs": "📑",
-  "bar_chart": "📊",
-  "chart_with_upwards_trend": "📈",
-  "chart_with_downwards_trend": "📉",
-  "scroll": "📜",
-  "clipboard": "📋",
-  "date": "📅",
-  "calendar": "📆",
-  "card_index": "📇",
-  "file_folder": "📁",
-  "open_file_folder": "📂",
-  "scissors": "✂️",
-  "pushpin": "📌",
-  "paperclip": "📎",
-  "black_nib": "✒️",
-  "pencil2": "✏️",
-  "straight_ruler": "📏",
-  "triangular_ruler": "📐",
-  "closed_book": "📕",
-  "green_book": "📗",
-  "blue_book": "📘",
-  "orange_book": "📙",
-  "notebook": "📓",
-  "notebook_with_decorative_cover": "📔",
-  "ledger": "📒",
-  "books": "📚",
-  "book": "📖",
-  "open_book": "📖",
-  "bookmark": "🔖",
-  "name_badge": "📛",
-  "microscope": "🔬",
-  "telescope": "🔭",
-  "newspaper": "📰",
+  "droplet": "💧",
+  "sweat_drops": "💦",
+  "umbrella": "☔️",
+  "green_apple": "🍏",
+  "apple": "🍎",
+  "pear": "🍐",
+  "tangerine": "🍊",
+  "orange": "🍊",
+  "mandarin": "🍊",
+  "lemon": "🍋",
+  "banana": "🍌",
+  "watermelon": "🍉",
+  "grapes": "🍇",
+  "strawberry": "🍓",
+  "melon": "🍈",
+  "cherries": "🍒",
+  "peach": "🍑",
+  "pineapple": "🍍",
+  "kiwi_fruit": "🥝",
+  "avocado": "🥑",
+  "tomato": "🍅",
+  "eggplant": "🍆",
+  "cucumber": "🥒",
+  "carrot": "🥕",
+  "corn": "🌽",
+  "hot_pepper": "🌶",
+  "potato": "🥔",
+  "sweet_potato": "🍠",
+  "chestnut": "🌰",
+  "peanuts": "🥜",
+  "honey_pot": "🍯",
+  "croissant": "🥐",
+  "bread": "🍞",
+  "baguette_bread": "🥖",
+  "cheese": "🧀",
+  "egg": "🥚",
+  "fried_egg": "🍳",
+  "bacon": "🥓",
+  "pancakes": "🥞",
+  "fried_shrimp": "🍤",
+  "poultry_leg": "🍗",
+  "meat_on_bone": "🍖",
+  "pizza": "🍕",
+  "hotdog": "🌭",
+  "hamburger": "🍔",
+  "fries": "🍟",
+  "stuffed_flatbread": "🥙",
+  "taco": "🌮",
+  "burrito": "🌯",
+  "green_salad": "🥗",
+  "shallow_pan_of_food": "🥘",
+  "spaghetti": "🍝",
+  "ramen": "🍜",
+  "stew": "🍲",
+  "fish_cake": "🍥",
+  "sushi": "🍣",
+  "bento": "🍱",
+  "curry": "🍛",
+  "rice": "🍚",
+  "rice_ball": "🍙",
+  "rice_cracker": "🍘",
+  "oden": "🍢",
+  "dango": "🍡",
+  "shaved_ice": "🍧",
+  "ice_cream": "🍨",
+  "icecream": "🍦",
+  "cake": "🍰",
+  "birthday": "🎂",
+  "custard": "🍮",
+  "lollipop": "🍭",
+  "candy": "🍬",
+  "chocolate_bar": "🍫",
+  "popcorn": "🍿",
+  "doughnut": "🍩",
+  "cookie": "🍪",
+  "milk_glass": "🥛",
+  "baby_bottle": "🍼",
+  "coffee": "☕️",
+  "tea": "🍵",
+  "sake": "🍶",
+  "beer": "🍺",
+  "beers": "🍻",
+  "clinking_glasses": "🥂",
+  "wine_glass": "🍷",
+  "tumbler_glass": "🥃",
+  "cocktail": "🍸",
+  "tropical_drink": "🍹",
+  "champagne": "🍾",
+  "spoon": "🥄",
+  "fork_and_knife": "🍴",
+  "plate_with_cutlery": "🍽",
+  "soccer": "⚽️",
+  "basketball": "🏀",
+  "football": "🏈",
+  "baseball": "⚾️",
+  "tennis": "🎾",
+  "volleyball": "🏐",
+  "rugby_football": "🏉",
+  "8ball": "🎱",
+  "ping_pong": "🏓",
+  "badminton": "🏸",
+  "goal_net": "🥅",
+  "ice_hockey": "🏒",
+  "field_hockey": "🏑",
+  "cricket": "🏏",
+  "golf": "⛳️",
+  "bow_and_arrow": "🏹",
+  "fishing_pole_and_fish": "🎣",
+  "boxing_glove": "🥊",
+  "martial_arts_uniform": "🥋",
+  "ice_skate": "⛸",
+  "ski": "🎿",
+  "skier": "⛷",
+  "snowboarder": "🏂",
+  "weight_lifting_woman": "🏋️‍♀️",
+  "weight_lifting_man": "🏋",
+  "person_fencing": "🤺",
+  "women_wrestling": "🤼‍♀",
+  "men_wrestling": "🤼‍♂",
+  "woman_cartwheeling": "🤸‍♀",
+  "man_cartwheeling": "🤸‍♂",
+  "basketball_woman": "⛹️‍♀️",
+  "basketball_man": "⛹",
+  "woman_playing_handball": "🤾‍♀",
+  "man_playing_handball": "🤾‍♂",
+  "golfing_woman": "🏌️‍♀️",
+  "golfing_man": "🏌",
+  "surfing_woman": "🏄‍♀",
+  "surfing_man": "🏄",
+  "surfer": "🏄",
+  "swimming_woman": "🏊‍♀",
+  "swimming_man": "🏊",
+  "swimmer": "🏊",
+  "woman_playing_water_polo": "🤽‍♀",
+  "man_playing_water_polo": "🤽‍♂",
+  "rowing_woman": "🚣‍♀",
+  "rowing_man": "🚣",
+  "rowboat": "🚣",
+  "horse_racing": "🏇",
+  "biking_woman": "🚴‍♀",
+  "biking_man": "🚴",
+  "bicyclist": "🚴",
+  "mountain_biking_woman": "🚵‍♀",
+  "mountain_biking_man": "🚵",
+  "mountain_bicyclist": "🚵",
+  "running_shirt_with_sash": "🎽",
+  "medal_sports": "🏅",
+  "medal_military": "🎖",
+  "1st_place_medal": "🥇",
+  "2nd_place_medal": "🥈",
+  "3rd_place_medal": "🥉",
+  "trophy": "🏆",
+  "rosette": "🏵",
+  "reminder_ribbon": "🎗",
+  "ticket": "🎫",
+  "tickets": "🎟",
+  "circus_tent": "🎪",
+  "woman_juggling": "🤹‍♀",
+  "man_juggling": "🤹‍♂",
+  "performing_arts": "🎭",
   "art": "🎨",
   "clapper": "🎬",
   "microphone": "🎤",
   "headphones": "🎧",
   "musical_score": "🎼",
-  "musical_note": "🎵",
-  "notes": "🎶",
   "musical_keyboard": "🎹",
-  "violin": "🎻",
-  "trumpet": "🎺",
+  "drum": "🥁",
   "saxophone": "🎷",
+  "trumpet": "🎺",
   "guitar": "🎸",
-  "space_invader": "👾",
-  "video_game": "🎮",
-  "black_joker": "🃏",
-  "flower_playing_cards": "🎴",
-  "mahjong": "🀄",
+  "violin": "🎻",
   "game_die": "🎲",
   "dart": "🎯",
-  "football": "🏈",
-  "basketball": "🏀",
-  "soccer": "⚽",
-  "baseball": "⚾️",
-  "tennis": "🎾",
-  "8ball": "🎱",
-  "rugby_football": "🏉",
   "bowling": "🎳",
-  "golf": "⛳",
-  "mountain_bicyclist": "🚵",
-  "bicyclist": "🚴",
-  "checkered_flag": "🏁",
-  "horse_racing": "🏇",
-  "trophy": "🏆",
-  "ski": "🎿",
-  "snowboarder": "🏂",
-  "swimmer": "🏊",
-  "surfer": "🏄",
-  "fishing_pole_and_fish": "🎣",
-  "coffee": "☕",
-  "tea": "🍵",
-  "sake": "🍶",
-  "baby_bottle": "🍼",
-  "beer": "🍺",
-  "beers": "🍻",
-  "cocktail": "🍸",
-  "tropical_drink": "🍹",
-  "wine_glass": "🍷",
-  "fork_and_knife": "🍴",
-  "pizza": "🍕",
-  "hamburger": "🍔",
-  "fries": "🍟",
-  "poultry_leg": "🍗",
-  "meat_on_bone": "🍖",
-  "spaghetti": "🍝",
-  "curry": "🍛",
-  "fried_shrimp": "🍤",
-  "bento": "🍱",
-  "sushi": "🍣",
-  "fish_cake": "🍥",
-  "rice_ball": "🍙",
-  "rice_cracker": "🍘",
-  "rice": "🍚",
-  "ramen": "🍜",
-  "stew": "🍲",
-  "oden": "🍢",
-  "dango": "🍡",
-  "egg": "🍳",
-  "bread": "🍞",
-  "doughnut": "🍩",
-  "custard": "🍮",
-  "icecream": "🍦",
-  "ice_cream": "🍨",
-  "shaved_ice": "🍧",
-  "birthday": "🎂",
-  "cake": "🍰",
-  "cookie": "🍪",
-  "chocolate_bar": "🍫",
-  "candy": "🍬",
-  "lollipop": "🍭",
-  "honey_pot": "🍯",
-  "apple": "🍎",
-  "green_apple": "🍏",
-  "tangerine": "🍊",
-  "lemon": "🍋",
-  "cherries": "🍒",
-  "grapes": "🍇",
-  "watermelon": "🍉",
-  "strawberry": "🍓",
-  "peach": "🍑",
-  "melon": "🍈",
-  "banana": "🍌",
-  "pear": "🍐",
-  "pineapple": "🍍",
-  "sweet_potato": "🍠",
-  "eggplant": "🍆",
-  "tomato": "🍅",
-  "corn": "🌽",
-  "house": "🏠",
-  "house_with_garden": "🏡",
-  "school": "🏫",
-  "office": "🏢",
-  "post_office": "🏣",
-  "hospital": "🏥",
-  "bank": "🏦",
-  "convenience_store": "🏪",
-  "love_hotel": "🏩",
-  "hotel": "🏨",
-  "wedding": "💒",
-  "church": "⛪",
-  "department_store": "🏬",
-  "european_post_office": "🏤",
-  "city_sunrise": "🌇",
-  "city_sunset": "🌆",
-  "japanese_castle": "🏯",
-  "european_castle": "🏰",
-  "tent": "⛺",
-  "factory": "🏭",
-  "tokyo_tower": "🗼",
-  "japan": "🗾",
-  "mount_fuji": "🗻",
-  "sunrise_over_mountains": "🌄",
-  "sunrise": "🌅",
-  "night_with_stars": "🌃",
-  "statue_of_liberty": "🗽",
-  "bridge_at_night": "🌉",
-  "carousel_horse": "🎠",
-  "ferris_wheel": "🎡",
-  "fountain": "⛲",
-  "roller_coaster": "🎢",
-  "ship": "🚢",
-  "boat": "⛵",
-  "sailboat": "⛵",
-  "speedboat": "🚤",
-  "rowboat": "🚣",
-  "anchor": "⚓",
-  "rocket": "🚀",
-  "airplane": "✈️",
-  "seat": "💺",
-  "helicopter": "🚁",
-  "steam_locomotive": "🚂",
-  "tram": "🚊",
-  "station": "🚉",
-  "mountain_railway": "🚞",
-  "train2": "🚆",
-  "bullettrain_side": "🚄",
-  "bullettrain_front": "🚅",
-  "light_rail": "🚈",
-  "metro": "🚇",
-  "monorail": "🚝",
-  "train": "🚋",
-  "railway_car": "🚃",
-  "trolleybus": "🚎",
-  "bus": "🚌",
-  "oncoming_bus": "🚍",
-  "blue_car": "🚙",
-  "oncoming_automobile": "🚘",
+  "video_game": "🎮",
+  "slot_machine": "🎰",
   "car": "🚗",
   "red_car": "🚗",
   "taxi": "🚕",
-  "oncoming_taxi": "🚖",
-  "articulated_lorry": "🚛",
-  "truck": "🚚",
-  "rotating_light": "🚨",
+  "blue_car": "🚙",
+  "bus": "🚌",
+  "trolleybus": "🚎",
+  "racing_car": "🏎",
   "police_car": "🚓",
-  "oncoming_police_car": "🚔",
-  "fire_engine": "🚒",
   "ambulance": "🚑",
+  "fire_engine": "🚒",
   "minibus": "🚐",
-  "bike": "🚲",
-  "aerial_tramway": "🚡",
-  "suspension_railway": "🚟",
-  "mountain_cableway": "🚠",
+  "truck": "🚚",
+  "articulated_lorry": "🚛",
   "tractor": "🚜",
-  "barber": "💈",
+  "kick_scooter": "🛴",
+  "bike": "🚲",
+  "motor_scooter": "🛵",
+  "motorcycle": "🏍",
+  "rotating_light": "🚨",
+  "oncoming_police_car": "🚔",
+  "oncoming_bus": "🚍",
+  "oncoming_automobile": "🚘",
+  "oncoming_taxi": "🚖",
+  "aerial_tramway": "🚡",
+  "mountain_cableway": "🚠",
+  "suspension_railway": "🚟",
+  "railway_car": "🚃",
+  "train": "🚋",
+  "mountain_railway": "🚞",
+  "monorail": "🚝",
+  "bullettrain_side": "🚄",
+  "bullettrain_front": "🚅",
+  "light_rail": "🚈",
+  "steam_locomotive": "🚂",
+  "train2": "🚆",
+  "metro": "🚇",
+  "tram": "🚊",
+  "station": "🚉",
+  "helicopter": "🚁",
+  "small_airplane": "🛩",
+  "airplane": "✈️",
+  "flight_departure": "🛫",
+  "flight_arrival": "🛬",
+  "rocket": "🚀",
+  "artificial_satellite": "🛰",
+  "seat": "💺",
+  "canoe": "🛶",
+  "boat": "⛵️",
+  "sailboat": "⛵️",
+  "motor_boat": "🛥",
+  "speedboat": "🚤",
+  "passenger_ship": "🛳",
+  "ferry": "⛴",
+  "ship": "🚢",
+  "anchor": "⚓️",
+  "construction": "🚧",
+  "fuelpump": "⛽️",
   "busstop": "🚏",
-  "ticket": "🎫",
   "vertical_traffic_light": "🚦",
   "traffic_light": "🚥",
-  "warning": "⚠️",
-  "construction": "🚧",
-  "beginner": "🔰",
-  "fuelpump": "⛽",
+  "world_map": "🗺",
+  "moyai": "🗿",
+  "statue_of_liberty": "🗽",
+  "fountain": "⛲️",
+  "tokyo_tower": "🗼",
+  "european_castle": "🏰",
+  "japanese_castle": "🏯",
+  "stadium": "🏟",
+  "ferris_wheel": "🎡",
+  "roller_coaster": "🎢",
+  "carousel_horse": "🎠",
+  "parasol_on_ground": "⛱",
+  "beach_umbrella": "🏖",
+  "desert_island": "🏝",
+  "mountain": "⛰",
+  "mountain_snow": "🏔",
+  "mount_fuji": "🗻",
+  "volcano": "🌋",
+  "desert": "🏜",
+  "camping": "🏕",
+  "tent": "⛺️",
+  "railway_track": "🛤",
+  "motorway": "🛣",
+  "building_construction": "🏗",
+  "factory": "🏭",
+  "house": "🏠",
+  "house_with_garden": "🏡",
+  "houses": "🏘",
+  "derelict_house": "🏚",
+  "office": "🏢",
+  "department_store": "🏬",
+  "post_office": "🏣",
+  "european_post_office": "🏤",
+  "hospital": "🏥",
+  "bank": "🏦",
+  "hotel": "🏨",
+  "convenience_store": "🏪",
+  "school": "🏫",
+  "love_hotel": "🏩",
+  "wedding": "💒",
+  "classical_building": "🏛",
+  "church": "⛪️",
+  "mosque": "🕌",
+  "synagogue": "🕍",
+  "kaaba": "🕋",
+  "shinto_shrine": "⛩",
+  "japan": "🗾",
+  "rice_scene": "🎑",
+  "national_park": "🏞",
+  "sunrise": "🌅",
+  "sunrise_over_mountains": "🌄",
+  "stars": "🌠",
+  "sparkler": "🎇",
+  "fireworks": "🎆",
+  "city_sunrise": "🌇",
+  "city_sunset": "🌆",
+  "cityscape": "🏙",
+  "night_with_stars": "🌃",
+  "milky_way": "🌌",
+  "bridge_at_night": "🌉",
+  "foggy": "🌁",
+  "watch": "⌚️",
+  "iphone": "📱",
+  "calling": "📲",
+  "computer": "💻",
+  "keyboard": "⌨️",
+  "desktop_computer": "🖥",
+  "printer": "🖨",
+  "computer_mouse": "🖱",
+  "trackball": "🖲",
+  "joystick": "🕹",
+  "clamp": "🗜",
+  "minidisc": "💽",
+  "floppy_disk": "💾",
+  "cd": "💿",
+  "dvd": "📀",
+  "vhs": "📼",
+  "camera": "📷",
+  "camera_flash": "📸",
+  "video_camera": "📹",
+  "movie_camera": "🎥",
+  "film_projector": "📽",
+  "film_strip": "🎞",
+  "telephone_receiver": "📞",
+  "phone": "☎️",
+  "telephone": "☎️",
+  "pager": "📟",
+  "fax": "📠",
+  "tv": "📺",
+  "radio": "📻",
+  "studio_microphone": "🎙",
+  "level_slider": "🎚",
+  "control_knobs": "🎛",
+  "stopwatch": "⏱",
+  "timer_clock": "⏲",
+  "alarm_clock": "⏰",
+  "mantelpiece_clock": "🕰",
+  "hourglass": "⌛️",
+  "hourglass_flowing_sand": "⏳",
+  "satellite": "📡",
+  "battery": "🔋",
+  "electric_plug": "🔌",
+  "bulb": "💡",
+  "flashlight": "🔦",
+  "candle": "🕯",
+  "wastebasket": "🗑",
+  "oil_drum": "🛢",
+  "money_with_wings": "💸",
+  "dollar": "💵",
+  "yen": "💴",
+  "euro": "💶",
+  "pound": "💷",
+  "moneybag": "💰",
+  "credit_card": "💳",
+  "gem": "💎",
+  "balance_scale": "⚖️",
+  "wrench": "🔧",
+  "hammer": "🔨",
+  "hammer_and_pick": "⚒",
+  "hammer_and_wrench": "🛠",
+  "pick": "⛏",
+  "nut_and_bolt": "🔩",
+  "gear": "⚙️",
+  "chains": "⛓",
+  "gun": "🔫",
+  "bomb": "💣",
+  "hocho": "🔪",
+  "knife": "🔪",
+  "dagger": "🗡",
+  "crossed_swords": "⚔️",
+  "shield": "🛡",
+  "smoking": "🚬",
+  "coffin": "⚰️",
+  "funeral_urn": "⚱️",
+  "amphora": "🏺",
+  "crystal_ball": "🔮",
+  "prayer_beads": "📿",
+  "barber": "💈",
+  "alembic": "⚗️",
+  "telescope": "🔭",
+  "microscope": "🔬",
+  "hole": "🕳",
+  "pill": "💊",
+  "syringe": "💉",
+  "thermometer": "🌡",
+  "toilet": "🚽",
+  "potable_water": "🚰",
+  "shower": "🚿",
+  "bathtub": "🛁",
+  "bath": "🛀",
+  "bellhop_bell": "🛎",
+  "key": "🔑",
+  "old_key": "🗝",
+  "door": "🚪",
+  "couch_and_lamp": "🛋",
+  "bed": "🛏",
+  "sleeping_bed": "🛌",
+  "framed_picture": "🖼",
+  "shopping": "🛍",
+  "shopping_cart": "🛒",
+  "gift": "🎁",
+  "balloon": "🎈",
+  "flags": "🎏",
+  "ribbon": "🎀",
+  "confetti_ball": "🎊",
+  "tada": "🎉",
+  "dolls": "🎎",
   "izakaya_lantern": "🏮",
   "lantern": "🏮",
-  "slot_machine": "🎰",
-  "hotsprings": "♨️",
-  "moyai": "🗿",
-  "circus_tent": "🎪",
-  "performing_arts": "🎭",
+  "wind_chime": "🎐",
+  "email": "✉️",
+  "envelope": "✉️",
+  "envelope_with_arrow": "📩",
+  "incoming_envelope": "📨",
+  "e-mail": "📧",
+  "love_letter": "💌",
+  "inbox_tray": "📥",
+  "outbox_tray": "📤",
+  "package": "📦",
+  "label": "🏷",
+  "mailbox_closed": "📪",
+  "mailbox": "📫",
+  "mailbox_with_mail": "📬",
+  "mailbox_with_no_mail": "📭",
+  "postbox": "📮",
+  "postal_horn": "📯",
+  "scroll": "📜",
+  "page_with_curl": "📃",
+  "page_facing_up": "📄",
+  "bookmark_tabs": "📑",
+  "bar_chart": "📊",
+  "chart_with_upwards_trend": "📈",
+  "chart_with_downwards_trend": "📉",
+  "spiral_notepad": "🗒",
+  "spiral_calendar": "🗓",
+  "calendar": "📆",
+  "date": "📅",
+  "card_index": "📇",
+  "card_file_box": "🗃",
+  "ballot_box": "🗳",
+  "file_cabinet": "🗄",
+  "clipboard": "📋",
+  "file_folder": "📁",
+  "open_file_folder": "📂",
+  "card_index_dividers": "🗂",
+  "newspaper_roll": "🗞",
+  "newspaper": "📰",
+  "notebook": "📓",
+  "notebook_with_decorative_cover": "📔",
+  "ledger": "📒",
+  "closed_book": "📕",
+  "green_book": "📗",
+  "blue_book": "📘",
+  "orange_book": "📙",
+  "books": "📚",
+  "book": "📖",
+  "open_book": "📖",
+  "bookmark": "🔖",
+  "link": "🔗",
+  "paperclip": "📎",
+  "paperclips": "🖇",
+  "triangular_ruler": "📐",
+  "straight_ruler": "📏",
+  "pushpin": "📌",
   "round_pushpin": "📍",
-  "triangular_flag_on_post": "🚩",
-  "jp": "🇯🇵",
-  "kr": "🇰🇷",
-  "de": "🇩🇪",
-  "cn": "🇨🇳",
-  "us": "🇺🇸",
-  "fr": "🇫🇷",
-  "es": "🇪🇸",
-  "it": "🇮🇹",
-  "ru": "🇷🇺",
-  "gb": "🇬🇧",
-  "uk": "🇬🇧",
+  "scissors": "✂️",
+  "pen": "🖊",
+  "fountain_pen": "🖋",
+  "black_nib": "✒️",
+  "paintbrush": "🖌",
+  "crayon": "🖍",
+  "memo": "📝",
+  "pencil": "📝",
+  "pencil2": "✏️",
+  "mag": "🔍",
+  "mag_right": "🔎",
+  "lock_with_ink_pen": "🔏",
+  "closed_lock_with_key": "🔐",
+  "lock": "🔒",
+  "unlock": "🔓",
+  "heart": "❤️",
+  "yellow_heart": "💛",
+  "green_heart": "💚",
+  "blue_heart": "💙",
+  "purple_heart": "💜",
+  "black_heart": "🖤",
+  "broken_heart": "💔",
+  "heavy_heart_exclamation": "❣️",
+  "two_hearts": "💕",
+  "revolving_hearts": "💞",
+  "heartbeat": "💓",
+  "heartpulse": "💗",
+  "sparkling_heart": "💖",
+  "cupid": "💘",
+  "gift_heart": "💝",
+  "heart_decoration": "💟",
+  "peace_symbol": "☮️",
+  "latin_cross": "✝️",
+  "star_and_crescent": "☪️",
+  "om": "🕉",
+  "wheel_of_dharma": "☸️",
+  "star_of_david": "✡️",
+  "six_pointed_star": "🔯",
+  "menorah": "🕎",
+  "yin_yang": "☯️",
+  "orthodox_cross": "☦️",
+  "place_of_worship": "🛐",
+  "ophiuchus": "⛎",
+  "aries": "♈️",
+  "taurus": "♉️",
+  "gemini": "♊️",
+  "cancer": "♋️",
+  "leo": "♌️",
+  "virgo": "♍️",
+  "libra": "♎️",
+  "scorpius": "♏️",
+  "sagittarius": "♐️",
+  "capricorn": "♑️",
+  "aquarius": "♒️",
+  "pisces": "♓️",
+  "id": "🆔",
+  "atom_symbol": "⚛️",
+  "accept": "🉑",
+  "radioactive": "☢️",
+  "biohazard": "☣️",
+  "mobile_phone_off": "📴",
+  "vibration_mode": "📳",
+  "eight_pointed_black_star": "✴️",
+  "vs": "🆚",
+  "white_flower": "💮",
+  "ideograph_advantage": "🉐",
+  "secret": "㊙️",
+  "congratulations": "㊗️",
+  "u6e80": "🈵",
+  "a": "🅰️",
+  "b": "🅱️",
+  "ab": "🆎",
+  "cl": "🆑",
+  "o2": "🅾️",
+  "sos": "🆘",
+  "x": "❌",
+  "o": "⭕️",
+  "stop_sign": "🛑",
+  "no_entry": "⛔️",
+  "name_badge": "📛",
+  "no_entry_sign": "🚫",
+  "anger": "💢",
+  "hotsprings": "♨️",
+  "no_pedestrians": "🚷",
+  "do_not_litter": "🚯",
+  "no_bicycles": "🚳",
+  "non-potable_water": "🚱",
+  "underage": "🔞",
+  "no_mobile_phones": "📵",
+  "no_smoking": "🚭",
+  "exclamation": "❗️",
+  "heavy_exclamation_mark": "❗️",
+  "grey_exclamation": "❕",
+  "question": "❓",
+  "grey_question": "❔",
+  "bangbang": "‼️",
+  "interrobang": "⁉️",
+  "low_brightness": "🔅",
+  "high_brightness": "🔆",
+  "part_alternation_mark": "〽️",
+  "warning": "⚠️",
+  "children_crossing": "🚸",
+  "trident": "🔱",
+  "fleur_de_lis": "⚜️",
+  "beginner": "🔰",
+  "recycle": "♻️",
+  "white_check_mark": "✅",
+  "chart": "💹",
+  "sparkle": "❇️",
+  "eight_spoked_asterisk": "✳️",
+  "negative_squared_cross_mark": "❎",
+  "globe_with_meridians": "🌐",
+  "diamond_shape_with_a_dot_inside": "💠",
+  "m": "Ⓜ️",
+  "cyclone": "🌀",
+  "zzz": "💤",
+  "atm": "🏧",
+  "wc": "🚾",
+  "wheelchair": "♿️",
+  "parking": "🅿️",
+  "sa": "🈂️",
+  "passport_control": "🛂",
+  "customs": "🛃",
+  "baggage_claim": "🛄",
+  "left_luggage": "🛅",
+  "mens": "🚹",
+  "womens": "🚺",
+  "baby_symbol": "🚼",
+  "restroom": "🚻",
+  "put_litter_in_its_place": "🚮",
+  "cinema": "🎦",
+  "signal_strength": "📶",
+  "koko": "🈁",
+  "symbols": "🔣",
+  "information_source": "ℹ️",
+  "abc": "🔤",
+  "abcd": "🔡",
+  "capital_abcd": "🔠",
+  "ng": "🆖",
+  "ok": "🆗",
+  "up": "🆙",
+  "cool": "🆒",
+  "new": "🆕",
+  "free": "🆓",
+  "zero": "0️⃣",
   "one": "1️⃣",
   "two": "2️⃣",
   "three": "3️⃣",
@@ -1669,205 +2102,382 @@ module.exports={
   "seven": "7️⃣",
   "eight": "8️⃣",
   "nine": "9️⃣",
-  "zero": "0️⃣",
   "keycap_ten": "🔟",
   "hash": "#️⃣",
-  "symbols": "🔣",
-  "arrow_up": "⬆️",
-  "arrow_down": "⬇️",
-  "arrow_left": "⬅️",
-  "arrow_right": "➡️",
-  "capital_abcd": "🔠",
-  "abcd": "🔡",
-  "abc": "🔤",
-  "arrow_upper_right": "↗️",
-  "arrow_upper_left": "↖️",
-  "arrow_lower_right": "↘️",
-  "arrow_lower_left": "↙️",
-  "left_right_arrow": "↔️",
-  "arrow_up_down": "↕️",
-  "arrows_counterclockwise": "🔄",
-  "arrow_backward": "◀️",
+  "asterisk": "*️⃣",
   "arrow_forward": "▶️",
-  "arrow_up_small": "🔼",
-  "arrow_down_small": "🔽",
-  "leftwards_arrow_with_hook": "↩️",
-  "arrow_right_hook": "↪️",
-  "information_source": "ℹ️",
-  "rewind": "⏪",
+  "pause_button": "⏸",
+  "play_or_pause_button": "⏯",
+  "stop_button": "⏹",
+  "record_button": "⏺",
+  "next_track_button": "⏭",
+  "previous_track_button": "⏮",
   "fast_forward": "⏩",
+  "rewind": "⏪",
   "arrow_double_up": "⏫",
   "arrow_double_down": "⏬",
-  "arrow_heading_down": "⤵️",
+  "arrow_backward": "◀️",
+  "arrow_up_small": "🔼",
+  "arrow_down_small": "🔽",
+  "arrow_right": "➡️",
+  "arrow_left": "⬅️",
+  "arrow_up": "⬆️",
+  "arrow_down": "⬇️",
+  "arrow_upper_right": "↗️",
+  "arrow_lower_right": "↘️",
+  "arrow_lower_left": "↙️",
+  "arrow_upper_left": "↖️",
+  "arrow_up_down": "↕️",
+  "left_right_arrow": "↔️",
+  "arrow_right_hook": "↪️",
+  "leftwards_arrow_with_hook": "↩️",
   "arrow_heading_up": "⤴️",
-  "ok": "🆗",
+  "arrow_heading_down": "⤵️",
   "twisted_rightwards_arrows": "🔀",
   "repeat": "🔁",
   "repeat_one": "🔂",
-  "new": "🆕",
-  "up": "🆙",
-  "cool": "🆒",
-  "free": "🆓",
-  "ng": "🆖",
-  "signal_strength": "📶",
-  "cinema": "🎦",
-  "koko": "🈁",
-  "u6307": "🈯",
-  "u7a7a": "🈳",
-  "u6e80": "🈵",
-  "u5408": "🈴",
-  "u7981": "🈲",
-  "ideograph_advantage": "🉐",
-  "u5272": "🈹",
-  "u55b6": "🈺",
-  "u6709": "🈶",
-  "u7121": "🈚",
-  "restroom": "🚻",
-  "mens": "🚹",
-  "womens": "🚺",
-  "baby_symbol": "🚼",
-  "wc": "🚾",
-  "potable_water": "🚰",
-  "put_litter_in_its_place": "🚮",
-  "parking": "🅿️",
-  "wheelchair": "♿",
-  "no_smoking": "🚭",
-  "u6708": "🈷️",
-  "u7533": "🈸",
-  "sa": "🈂️",
-  "m": "Ⓜ️",
-  "passport_control": "🛂",
-  "baggage_claim": "🛄",
-  "left_luggage": "🛅",
-  "customs": "🛃",
-  "accept": "🉑",
-  "secret": "㊙️",
-  "congratulations": "㊗️",
-  "cl": "🆑",
-  "sos": "🆘",
-  "id": "🆔",
-  "no_entry_sign": "🚫",
-  "underage": "🔞",
-  "no_mobile_phones": "📵",
-  "do_not_litter": "🚯",
-  "non-potable_water": "🚱",
-  "no_bicycles": "🚳",
-  "no_pedestrians": "🚷",
-  "children_crossing": "🚸",
-  "no_entry": "⛔",
-  "eight_spoked_asterisk": "✳️",
-  "sparkle": "❇️",
-  "negative_squared_cross_mark": "❎",
-  "white_check_mark": "✅",
-  "eight_pointed_black_star": "✴️",
-  "heart_decoration": "💟",
-  "vs": "🆚",
-  "vibration_mode": "📳",
-  "mobile_phone_off": "📴",
-  "a": "🅰️",
-  "b": "🅱️",
-  "ab": "🆎",
-  "o2": "🅾️",
-  "diamond_shape_with_a_dot_inside": "💠",
-  "loop": "➿",
-  "recycle": "♻️",
-  "aries": "♈",
-  "taurus": "♉",
-  "gemini": "♊",
-  "cancer": "♋",
-  "leo": "♌",
-  "virgo": "♍",
-  "libra": "♎",
-  "scorpius": "♏",
-  "sagittarius": "♐",
-  "capricorn": "♑",
-  "aquarius": "♒",
-  "pisces": "♓",
-  "ophiuchus": "⛎",
-  "six_pointed_star": "🔯",
-  "atm": "🏧",
-  "chart": "💹",
+  "arrows_counterclockwise": "🔄",
+  "arrows_clockwise": "🔃",
+  "musical_note": "🎵",
+  "notes": "🎶",
+  "heavy_plus_sign": "➕",
+  "heavy_minus_sign": "➖",
+  "heavy_division_sign": "➗",
+  "heavy_multiplication_x": "✖️",
   "heavy_dollar_sign": "💲",
   "currency_exchange": "💱",
+  "tm": "™️",
   "copyright": "©️",
   "registered": "®️",
-  "tm": "™️",
-  "x": "❌",
-  "bangbang": "‼️",
-  "interrobang": "⁉️",
-  "exclamation": "❗",
-  "heavy_exclamation_mark": "❗",
-  "question": "❓",
-  "grey_exclamation": "❕",
-  "grey_question": "❔",
-  "o": "⭕",
-  "top": "🔝",
+  "wavy_dash": "〰️",
+  "curly_loop": "➰",
+  "loop": "➿",
   "end": "🔚",
   "back": "🔙",
   "on": "🔛",
+  "top": "🔝",
   "soon": "🔜",
-  "arrows_clockwise": "🔃",
-  "clock12": "🕛",
-  "clock1230": "🕧",
+  "heavy_check_mark": "✔️",
+  "ballot_box_with_check": "☑️",
+  "radio_button": "🔘",
+  "white_circle": "⚪️",
+  "black_circle": "⚫️",
+  "red_circle": "🔴",
+  "large_blue_circle": "🔵",
+  "small_red_triangle": "🔺",
+  "small_red_triangle_down": "🔻",
+  "small_orange_diamond": "🔸",
+  "small_blue_diamond": "🔹",
+  "large_orange_diamond": "🔶",
+  "large_blue_diamond": "🔷",
+  "white_square_button": "🔳",
+  "black_square_button": "🔲",
+  "black_small_square": "▪️",
+  "white_small_square": "▫️",
+  "black_medium_small_square": "◾️",
+  "white_medium_small_square": "◽️",
+  "black_medium_square": "◼️",
+  "white_medium_square": "◻️",
+  "black_large_square": "⬛️",
+  "white_large_square": "⬜️",
+  "speaker": "🔈",
+  "mute": "🔇",
+  "sound": "🔉",
+  "loud_sound": "🔊",
+  "bell": "🔔",
+  "no_bell": "🔕",
+  "mega": "📣",
+  "loudspeaker": "📢",
+  "eye_speech_bubble": "👁‍🗨",
+  "speech_balloon": "💬",
+  "thought_balloon": "💭",
+  "right_anger_bubble": "🗯",
+  "spades": "♠️",
+  "clubs": "♣️",
+  "hearts": "♥️",
+  "diamonds": "♦️",
+  "black_joker": "🃏",
+  "flower_playing_cards": "🎴",
+  "mahjong": "🀄️",
   "clock1": "🕐",
-  "clock130": "🕜",
   "clock2": "🕑",
-  "clock230": "🕝",
   "clock3": "🕒",
-  "clock330": "🕞",
   "clock4": "🕓",
-  "clock430": "🕟",
   "clock5": "🕔",
-  "clock530": "🕠",
   "clock6": "🕕",
   "clock7": "🕖",
   "clock8": "🕗",
   "clock9": "🕘",
   "clock10": "🕙",
   "clock11": "🕚",
+  "clock12": "🕛",
+  "clock130": "🕜",
+  "clock230": "🕝",
+  "clock330": "🕞",
+  "clock430": "🕟",
+  "clock530": "🕠",
   "clock630": "🕡",
   "clock730": "🕢",
   "clock830": "🕣",
   "clock930": "🕤",
   "clock1030": "🕥",
   "clock1130": "🕦",
-  "heavy_multiplication_x": "✖️",
-  "heavy_plus_sign": "➕",
-  "heavy_minus_sign": "➖",
-  "heavy_division_sign": "➗",
-  "spades": "♠️",
-  "hearts": "♥️",
-  "clubs": "♣️",
-  "diamonds": "♦️",
-  "white_flower": "💮",
-  "heavy_check_mark": "✔️",
-  "ballot_box_with_check": "☑️",
-  "radio_button": "🔘",
-  "link": "🔗",
-  "curly_loop": "➰",
-  "wavy_dash": "〰️",
-  "part_alternation_mark": "〽️",
-  "trident": "🔱",
-  "black_medium_square": "◼️",
-  "white_medium_square": "◻️",
-  "black_medium_small_square": "◾",
-  "white_medium_small_square": "◽",
-  "black_small_square": "▪️",
-  "white_small_square": "▫️",
-  "small_red_triangle": "🔺",
-  "black_square_button": "🔲",
-  "white_square_button": "🔳",
-  "black_circle": "⚫",
-  "white_circle": "⚪",
-  "red_circle": "🔴",
-  "large_blue_circle": "🔵",
-  "small_red_triangle_down": "🔻",
-  "white_large_square": "⬜",
-  "black_large_square": "⬛",
-  "large_orange_diamond": "🔶",
-  "large_blue_diamond": "🔷",
-  "small_orange_diamond": "🔸",
-  "small_blue_diamond": "🔹"
+  "clock1230": "🕧",
+  "white_flag": "🏳️",
+  "black_flag": "🏴",
+  "checkered_flag": "🏁",
+  "triangular_flag_on_post": "🚩",
+  "rainbow_flag": "🏳️‍🌈",
+  "afghanistan": "🇦🇫",
+  "aland_islands": "🇦🇽",
+  "albania": "🇦🇱",
+  "algeria": "🇩🇿",
+  "american_samoa": "🇦🇸",
+  "andorra": "🇦🇩",
+  "angola": "🇦🇴",
+  "anguilla": "🇦🇮",
+  "antarctica": "🇦🇶",
+  "antigua_barbuda": "🇦🇬",
+  "argentina": "🇦🇷",
+  "armenia": "🇦🇲",
+  "aruba": "🇦🇼",
+  "australia": "🇦🇺",
+  "austria": "🇦🇹",
+  "azerbaijan": "🇦🇿",
+  "bahamas": "🇧🇸",
+  "bahrain": "🇧🇭",
+  "bangladesh": "🇧🇩",
+  "barbados": "🇧🇧",
+  "belarus": "🇧🇾",
+  "belgium": "🇧🇪",
+  "belize": "🇧🇿",
+  "benin": "🇧🇯",
+  "bermuda": "🇧🇲",
+  "bhutan": "🇧🇹",
+  "bolivia": "🇧🇴",
+  "caribbean_netherlands": "🇧🇶",
+  "bosnia_herzegovina": "🇧🇦",
+  "botswana": "🇧🇼",
+  "brazil": "🇧🇷",
+  "british_indian_ocean_territory": "🇮🇴",
+  "british_virgin_islands": "🇻🇬",
+  "brunei": "🇧🇳",
+  "bulgaria": "🇧🇬",
+  "burkina_faso": "🇧🇫",
+  "burundi": "🇧🇮",
+  "cape_verde": "🇨🇻",
+  "cambodia": "🇰🇭",
+  "cameroon": "🇨🇲",
+  "canada": "🇨🇦",
+  "canary_islands": "🇮🇨",
+  "cayman_islands": "🇰🇾",
+  "central_african_republic": "🇨🇫",
+  "chad": "🇹🇩",
+  "chile": "🇨🇱",
+  "cn": "🇨🇳",
+  "christmas_island": "🇨🇽",
+  "cocos_islands": "🇨🇨",
+  "colombia": "🇨🇴",
+  "comoros": "🇰🇲",
+  "congo_brazzaville": "🇨🇬",
+  "congo_kinshasa": "🇨🇩",
+  "cook_islands": "🇨🇰",
+  "costa_rica": "🇨🇷",
+  "cote_divoire": "🇨🇮",
+  "croatia": "🇭🇷",
+  "cuba": "🇨🇺",
+  "curacao": "🇨🇼",
+  "cyprus": "🇨🇾",
+  "czech_republic": "🇨🇿",
+  "denmark": "🇩🇰",
+  "djibouti": "🇩🇯",
+  "dominica": "🇩🇲",
+  "dominican_republic": "🇩🇴",
+  "ecuador": "🇪🇨",
+  "egypt": "🇪🇬",
+  "el_salvador": "🇸🇻",
+  "equatorial_guinea": "🇬🇶",
+  "eritrea": "🇪🇷",
+  "estonia": "🇪🇪",
+  "ethiopia": "🇪🇹",
+  "eu": "🇪🇺",
+  "european_union": "🇪🇺",
+  "falkland_islands": "🇫🇰",
+  "faroe_islands": "🇫🇴",
+  "fiji": "🇫🇯",
+  "finland": "🇫🇮",
+  "fr": "🇫🇷",
+  "french_guiana": "🇬🇫",
+  "french_polynesia": "🇵🇫",
+  "french_southern_territories": "🇹🇫",
+  "gabon": "🇬🇦",
+  "gambia": "🇬🇲",
+  "georgia": "🇬🇪",
+  "de": "🇩🇪",
+  "ghana": "🇬🇭",
+  "gibraltar": "🇬🇮",
+  "greece": "🇬🇷",
+  "greenland": "🇬🇱",
+  "grenada": "🇬🇩",
+  "guadeloupe": "🇬🇵",
+  "guam": "🇬🇺",
+  "guatemala": "🇬🇹",
+  "guernsey": "🇬🇬",
+  "guinea": "🇬🇳",
+  "guinea_bissau": "🇬🇼",
+  "guyana": "🇬🇾",
+  "haiti": "🇭🇹",
+  "honduras": "🇭🇳",
+  "hong_kong": "🇭🇰",
+  "hungary": "🇭🇺",
+  "iceland": "🇮🇸",
+  "india": "🇮🇳",
+  "indonesia": "🇮🇩",
+  "iran": "🇮🇷",
+  "iraq": "🇮🇶",
+  "ireland": "🇮🇪",
+  "isle_of_man": "🇮🇲",
+  "israel": "🇮🇱",
+  "it": "🇮🇹",
+  "jamaica": "🇯🇲",
+  "jp": "🇯🇵",
+  "crossed_flags": "🎌",
+  "jersey": "🇯🇪",
+  "jordan": "🇯🇴",
+  "kazakhstan": "🇰🇿",
+  "kenya": "🇰🇪",
+  "kiribati": "🇰🇮",
+  "kosovo": "🇽🇰",
+  "kuwait": "🇰🇼",
+  "kyrgyzstan": "🇰🇬",
+  "laos": "🇱🇦",
+  "latvia": "🇱🇻",
+  "lebanon": "🇱🇧",
+  "lesotho": "🇱🇸",
+  "liberia": "🇱🇷",
+  "libya": "🇱🇾",
+  "liechtenstein": "🇱🇮",
+  "lithuania": "🇱🇹",
+  "luxembourg": "🇱🇺",
+  "macau": "🇲🇴",
+  "macedonia": "🇲🇰",
+  "madagascar": "🇲🇬",
+  "malawi": "🇲🇼",
+  "malaysia": "🇲🇾",
+  "maldives": "🇲🇻",
+  "mali": "🇲🇱",
+  "malta": "🇲🇹",
+  "marshall_islands": "🇲🇭",
+  "martinique": "🇲🇶",
+  "mauritania": "🇲🇷",
+  "mauritius": "🇲🇺",
+  "mayotte": "🇾🇹",
+  "mexico": "🇲🇽",
+  "micronesia": "🇫🇲",
+  "moldova": "🇲🇩",
+  "monaco": "🇲🇨",
+  "mongolia": "🇲🇳",
+  "montenegro": "🇲🇪",
+  "montserrat": "🇲🇸",
+  "morocco": "🇲🇦",
+  "mozambique": "🇲🇿",
+  "myanmar": "🇲🇲",
+  "namibia": "🇳🇦",
+  "nauru": "🇳🇷",
+  "nepal": "🇳🇵",
+  "netherlands": "🇳🇱",
+  "new_caledonia": "🇳🇨",
+  "new_zealand": "🇳🇿",
+  "nicaragua": "🇳🇮",
+  "niger": "🇳🇪",
+  "nigeria": "🇳🇬",
+  "niue": "🇳🇺",
+  "norfolk_island": "🇳🇫",
+  "northern_mariana_islands": "🇲🇵",
+  "north_korea": "🇰🇵",
+  "norway": "🇳🇴",
+  "oman": "🇴🇲",
+  "pakistan": "🇵🇰",
+  "palau": "🇵🇼",
+  "palestinian_territories": "🇵🇸",
+  "panama": "🇵🇦",
+  "papua_new_guinea": "🇵🇬",
+  "paraguay": "🇵🇾",
+  "peru": "🇵🇪",
+  "philippines": "🇵🇭",
+  "pitcairn_islands": "🇵🇳",
+  "poland": "🇵🇱",
+  "portugal": "🇵🇹",
+  "puerto_rico": "🇵🇷",
+  "qatar": "🇶🇦",
+  "reunion": "🇷🇪",
+  "romania": "🇷🇴",
+  "ru": "🇷🇺",
+  "rwanda": "🇷🇼",
+  "st_barthelemy": "🇧🇱",
+  "st_helena": "🇸🇭",
+  "st_kitts_nevis": "🇰🇳",
+  "st_lucia": "🇱🇨",
+  "st_pierre_miquelon": "🇵🇲",
+  "st_vincent_grenadines": "🇻🇨",
+  "samoa": "🇼🇸",
+  "san_marino": "🇸🇲",
+  "sao_tome_principe": "🇸🇹",
+  "saudi_arabia": "🇸🇦",
+  "senegal": "🇸🇳",
+  "serbia": "🇷🇸",
+  "seychelles": "🇸🇨",
+  "sierra_leone": "🇸🇱",
+  "singapore": "🇸🇬",
+  "sint_maarten": "🇸🇽",
+  "slovakia": "🇸🇰",
+  "slovenia": "🇸🇮",
+  "solomon_islands": "🇸🇧",
+  "somalia": "🇸🇴",
+  "south_africa": "🇿🇦",
+  "south_georgia_south_sandwich_islands": "🇬🇸",
+  "kr": "🇰🇷",
+  "south_sudan": "🇸🇸",
+  "es": "🇪🇸",
+  "sri_lanka": "🇱🇰",
+  "sudan": "🇸🇩",
+  "suriname": "🇸🇷",
+  "swaziland": "🇸🇿",
+  "sweden": "🇸🇪",
+  "switzerland": "🇨🇭",
+  "syria": "🇸🇾",
+  "taiwan": "🇹🇼",
+  "tajikistan": "🇹🇯",
+  "tanzania": "🇹🇿",
+  "thailand": "🇹🇭",
+  "timor_leste": "🇹🇱",
+  "togo": "🇹🇬",
+  "tokelau": "🇹🇰",
+  "tonga": "🇹🇴",
+  "trinidad_tobago": "🇹🇹",
+  "tunisia": "🇹🇳",
+  "tr": "🇹🇷",
+  "turkmenistan": "🇹🇲",
+  "turks_caicos_islands": "🇹🇨",
+  "tuvalu": "🇹🇻",
+  "uganda": "🇺🇬",
+  "ukraine": "🇺🇦",
+  "united_arab_emirates": "🇦🇪",
+  "gb": "🇬🇧",
+  "uk": "🇬🇧",
+  "us": "🇺🇸",
+  "us_virgin_islands": "🇻🇮",
+  "uruguay": "🇺🇾",
+  "uzbekistan": "🇺🇿",
+  "vanuatu": "🇻🇺",
+  "vatican_city": "🇻🇦",
+  "venezuela": "🇻🇪",
+  "vietnam": "🇻🇳",
+  "wallis_futuna": "🇼🇫",
+  "western_sahara": "🇪🇭",
+  "yemen": "🇾🇪",
+  "zambia": "🇿🇲",
+  "zimbabwe": "🇿🇼"
 }
 },{}],11:[function(require,module,exports){
 // Emoticons -> Emoji mapping.
@@ -1919,7 +2529,7 @@ module.exports = {
 'use strict';
 
 
-function quoteRE (str) {
+function quoteRE(str) {
   return str.replace(/[.?*+^$[\]\\(){}|-]/g, '\\$&');
 }
 
@@ -1998,7 +2608,7 @@ module.exports = function create_rule(md, emojies, shortcuts, scanRE, replaceRE)
   function splitTextToken(text, level, Token) {
     var token, last_pos = 0, nodes = [];
 
-    text.replace(replaceRE, function(match, offset, src) {
+    text.replace(replaceRE, function (match, offset, src) {
       var emoji_name;
       // Validate emoji name
       if (shortcuts.hasOwnProperty(match)) {
@@ -2060,7 +2670,7 @@ module.exports = function create_rule(md, emojies, shortcuts, scanRE, replaceRE)
           if (token.info === 'auto') { autolinkLevel -= token.nesting; }
         }
 
-        if (token.type === 'text' && scanRE.test(token.content) && autolinkLevel === 0) {
+        if (token.type === 'text' && autolinkLevel === 0 && scanRE.test(token.content)) {
           // replace current node
           blockTokens[j].children = tokens = arrayReplaceAt(
             tokens, i, splitTextToken(token.content, token.level, state.Token)
@@ -2115,15 +2725,20 @@ function markdownitLinkifyImages (md, config) {
     var token = tokens[idx]
     var srcIndex = token.attrIndex('src')
     var url = token.attrs[srcIndex][1]
+    var title = ''
     var caption = token.content
 
     var target = generateTargetAttribute(config.target)
     var linkClass = generateClass(config.linkClass)
     var imgClass = generateClass(config.imgClass)
 
+    if (token.attrIndex('title') !== -1) {
+      title = ' title="' + token.attrs[token.attrIndex('title')][1] + '"'
+    }
+
     return '' +
       '<a href="' + url + '"' + linkClass + target + '>' +
-        '<img src="' + url + '" alt="' + caption + '"' + imgClass + '>' +
+        '<img src="' + url + '" alt="' + caption + '"' + imgClass + title + '>' +
       '</a>'
   }
 }
@@ -2190,6 +2805,11 @@ module.exports = [
   'frame',
   'frameset',
   'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
   'head',
   'header',
   'hr',
@@ -2209,10 +2829,8 @@ module.exports = [
   'option',
   'p',
   'param',
-  'pre',
   'section',
   'source',
-  'title',
   'summary',
   'table',
   'tbody',
@@ -2604,18 +3222,18 @@ module.exports = function parseLinkDestination(str, pos, max) {
 
     if (code === 0x28 /* ( */) {
       level++;
-      if (level > 1) { break; }
     }
 
     if (code === 0x29 /* ) */) {
+      if (level === 0) { break; }
       level--;
-      if (level < 0) { break; }
     }
 
     pos++;
   }
 
   if (start === pos) { return result; }
+  if (level !== 0) { return result; }
 
   result.str = unescapeAll(str.slice(start, pos));
   result.lines = lines;
@@ -3070,7 +3688,7 @@ function MarkdownIt(presetName, options) {
    * Link components parser functions, useful to write plugins. See details
    * [here](https://github.com/markdown-it/markdown-it/blob/master/lib/helpers).
    **/
-  this.helpers = helpers;
+  this.helpers = utils.assign({}, helpers);
 
 
   this.options = {};
@@ -3246,6 +3864,10 @@ MarkdownIt.prototype.use = function (plugin /*, params, ... */) {
  * and then pass updated object to renderer.
  **/
 MarkdownIt.prototype.parse = function (src, env) {
+  if (typeof src !== 'string') {
+    throw new Error('Input data should be a String');
+  }
+
   var state = new this.core.State(src, this, env);
 
   this.core.process(state);
@@ -3326,7 +3948,7 @@ var _rules = [
   [ 'table',      require('./rules_block/table'),      [ 'paragraph', 'reference' ] ],
   [ 'code',       require('./rules_block/code') ],
   [ 'fence',      require('./rules_block/fence'),      [ 'paragraph', 'reference', 'blockquote', 'list' ] ],
-  [ 'blockquote', require('./rules_block/blockquote'), [ 'paragraph', 'reference', 'list' ] ],
+  [ 'blockquote', require('./rules_block/blockquote'), [ 'paragraph', 'reference', 'blockquote', 'list' ] ],
   [ 'hr',         require('./rules_block/hr'),         [ 'paragraph', 'reference', 'blockquote', 'list' ] ],
   [ 'list',       require('./rules_block/list'),       [ 'paragraph', 'reference', 'blockquote' ] ],
   [ 'reference',  require('./rules_block/reference') ],
@@ -3391,7 +4013,7 @@ ParserBlock.prototype.tokenize = function (state, startLine, endLine) {
       if (ok) { break; }
     }
 
-    // set state.tight iff we had an empty line before current tag
+    // set state.tight if we had an empty line before current tag
     // i.e. latest empty line should not count
     state.tight = !hasEmptyLines;
 
@@ -3919,7 +4541,7 @@ default_rules.fence = function (tokens, idx, options, env, slf) {
     return highlighted + '\n';
   }
 
-  // If language exists, inject class gently, without mudofying original token.
+  // If language exists, inject class gently, without modifying original token.
   // May be, one day we will add .clone() for token and simplify this part, but
   // now we prefer to keep things local.
   if (info) {
@@ -4008,7 +4630,7 @@ function Renderer() {
    * var result = md.renderInline(...);
    * ```
    *
-   * Each rule is called as independed static function with fixed signature:
+   * Each rule is called as independent static function with fixed signature:
    *
    * ```javascript
    * function my_token_render(tokens, idx, options, env, renderer) {
@@ -4304,7 +4926,7 @@ Ruler.prototype.__compile__ = function () {
  *
  * ##### Example
  *
- * Replace existing typorgapher replacement rule with new one:
+ * Replace existing typographer replacement rule with new one:
  *
  * ```javascript
  * var md = require('markdown-it')();
@@ -4579,8 +5201,13 @@ module.exports = function blockquote(state, startLine, endLine, silent) {
       terminate,
       terminatorRules,
       token,
+      wasOutdented,
+      oldLineMax = state.lineMax,
       pos = state.bMarks[startLine] + state.tShift[startLine],
       max = state.eMarks[startLine];
+
+  // if it's indented more than 3 spaces, it should be a code block
+  if (state.sCount[startLine] - state.blkIndent >= 4) { return false; }
 
   // check the block quote marker
   if (state.src.charCodeAt(pos++) !== 0x3E/* > */) { return false; }
@@ -4588,9 +5215,6 @@ module.exports = function blockquote(state, startLine, endLine, silent) {
   // we know that it's going to be a valid blockquote,
   // so no point trying to find the end of it in silent mode
   if (silent) { return true; }
-
-  oldIndent = state.blkIndent;
-  state.blkIndent = 0;
 
   // skip spaces after ">" and re-calculate offset
   initial = offset = state.sCount[startLine] + pos - (state.bMarks[startLine] + state.tShift[startLine]);
@@ -4658,6 +5282,7 @@ module.exports = function blockquote(state, startLine, endLine, silent) {
 
   oldParentType = state.parentType;
   state.parentType = 'blockquote';
+  wasOutdented = false;
 
   // Search the end of the block
   //
@@ -4672,13 +5297,21 @@ module.exports = function blockquote(state, startLine, endLine, silent) {
   //     >
   //     test
   //     ```
-  //  3. another tag
+  //  3. another tag:
   //     ```
   //     > test
   //      - - -
   //     ```
   for (nextLine = startLine + 1; nextLine < endLine; nextLine++) {
-    if (state.sCount[nextLine] < oldIndent) { break; }
+    // check if it's outdented, i.e. it's inside list item and indented
+    // less than said list item:
+    //
+    // ```
+    // 1. anything
+    //    > current blockquote
+    // 2. checking this line
+    // ```
+    if (state.sCount[nextLine] < state.blkIndent) wasOutdented = true;
 
     pos = state.bMarks[nextLine] + state.tShift[nextLine];
     max = state.eMarks[nextLine];
@@ -4688,7 +5321,7 @@ module.exports = function blockquote(state, startLine, endLine, silent) {
       break;
     }
 
-    if (state.src.charCodeAt(pos++) === 0x3E/* > */) {
+    if (state.src.charCodeAt(pos++) === 0x3E/* > */ && !wasOutdented) {
       // This line is inside the blockquote.
 
       // skip spaces after ">" and re-calculate offset
@@ -4766,7 +5399,27 @@ module.exports = function blockquote(state, startLine, endLine, silent) {
         break;
       }
     }
-    if (terminate) { break; }
+
+    if (terminate) {
+      // Quirk to enforce "hard termination mode" for paragraphs;
+      // normally if you call `tokenize(state, startLine, nextLine)`,
+      // paragraphs will look below nextLine for paragraph continuation,
+      // but if blockquote is terminated by another tag, they shouldn't
+      state.lineMax = nextLine;
+
+      if (state.blkIndent !== 0) {
+        // state.blkIndent was non-zero, we now set it to zero,
+        // so we need to re-calculate all offsets to appear as
+        // if indent wasn't changed
+        oldBMarks.push(state.bMarks[nextLine]);
+        oldBSCount.push(state.bsCount[nextLine]);
+        oldTShift.push(state.tShift[nextLine]);
+        oldSCount.push(state.sCount[nextLine]);
+        state.sCount[nextLine] -= state.blkIndent;
+      }
+
+      break;
+    }
 
     oldBMarks.push(state.bMarks[nextLine]);
     oldBSCount.push(state.bsCount[nextLine]);
@@ -4778,6 +5431,9 @@ module.exports = function blockquote(state, startLine, endLine, silent) {
     state.sCount[nextLine] = -1;
   }
 
+  oldIndent = state.blkIndent;
+  state.blkIndent = 0;
+
   token        = state.push('blockquote_open', 'blockquote', 1);
   token.markup = '>';
   token.map    = lines = [ startLine, 0 ];
@@ -4787,6 +5443,7 @@ module.exports = function blockquote(state, startLine, endLine, silent) {
   token        = state.push('blockquote_close', 'blockquote', -1);
   token.markup = '>';
 
+  state.lineMax = oldLineMax;
   state.parentType = oldParentType;
   lines[1] = state.line;
 
@@ -4851,6 +5508,9 @@ module.exports = function fence(state, startLine, endLine, silent) {
       pos = state.bMarks[startLine] + state.tShift[startLine],
       max = state.eMarks[startLine];
 
+  // if it's indented more than 3 spaces, it should be a code block
+  if (state.sCount[startLine] - state.blkIndent >= 4) { return false; }
+
   if (pos + 3 > max) { return false; }
 
   marker = state.src.charCodeAt(pos);
@@ -4870,7 +5530,7 @@ module.exports = function fence(state, startLine, endLine, silent) {
   markup = state.src.slice(mem, pos);
   params = state.src.slice(pos, max);
 
-  if (params.indexOf('`') >= 0) { return false; }
+  if (params.indexOf(String.fromCharCode(marker)) >= 0) { return false; }
 
   // Since start is found, we can report success here in validation mode
   if (silent) { return true; }
@@ -4945,6 +5605,9 @@ module.exports = function heading(state, startLine, endLine, silent) {
       pos = state.bMarks[startLine] + state.tShift[startLine],
       max = state.eMarks[startLine];
 
+  // if it's indented more than 3 spaces, it should be a code block
+  if (state.sCount[startLine] - state.blkIndent >= 4) { return false; }
+
   ch  = state.src.charCodeAt(pos);
 
   if (ch !== 0x23/* # */ || pos >= max) { return false; }
@@ -4998,6 +5661,9 @@ module.exports = function hr(state, startLine, endLine, silent) {
   var marker, cnt, ch, token,
       pos = state.bMarks[startLine] + state.tShift[startLine],
       max = state.eMarks[startLine];
+
+  // if it's indented more than 3 spaces, it should be a code block
+  if (state.sCount[startLine] - state.blkIndent >= 4) { return false; }
 
   marker = state.src.charCodeAt(pos++);
 
@@ -5058,6 +5724,9 @@ module.exports = function html_block(state, startLine, endLine, silent) {
       pos = state.bMarks[startLine] + state.tShift[startLine],
       max = state.eMarks[startLine];
 
+  // if it's indented more than 3 spaces, it should be a code block
+  if (state.sCount[startLine] - state.blkIndent >= 4) { return false; }
+
   if (!state.md.options.html) { return false; }
 
   if (state.src.charCodeAt(pos) !== 0x3C/* < */) { return false; }
@@ -5113,6 +5782,9 @@ module.exports = function lheading(state, startLine, endLine/*, silent*/) {
   var content, terminate, i, l, token, pos, max, level, marker,
       nextLine = startLine + 1, oldParentType,
       terminatorRules = state.md.block.ruler.getRules('paragraph');
+
+  // if it's indented more than 3 spaces, it should be a code block
+  if (state.sCount[startLine] - state.blkIndent >= 4) { return false; }
 
   oldParentType = state.parentType;
   state.parentType = 'paragraph'; // use paragraph to match terminatorRules
@@ -5193,7 +5865,7 @@ module.exports = function lheading(state, startLine, endLine/*, silent*/) {
 var isSpace = require('../common/utils').isSpace;
 
 
-// Search `[-+*][\n ]`, returns next pos arter marker on success
+// Search `[-+*][\n ]`, returns next pos after marker on success
 // or -1 on fail.
 function skipBulletListMarker(state, startLine) {
   var marker, pos, max, ch;
@@ -5221,7 +5893,7 @@ function skipBulletListMarker(state, startLine) {
   return pos;
 }
 
-// Search `\d+[.)][\n ]`, returns next pos arter marker on success
+// Search `\d+[.)][\n ]`, returns next pos after marker on success
 // or -1 on fail.
 function skipOrderedListMarker(state, startLine) {
   var ch,
@@ -5317,6 +5989,9 @@ module.exports = function list(state, startLine, endLine, silent) {
       isTerminatingParagraph = false,
       tight = true;
 
+  // if it's indented more than 3 spaces, it should be a code block
+  if (state.sCount[startLine] - state.blkIndent >= 4) { return false; }
+
   // limit conditions when list can interrupt
   // a paragraph (validation mode only)
   if (silent && state.parentType === 'paragraph') {
@@ -5395,12 +6070,10 @@ module.exports = function list(state, startLine, endLine, silent) {
     while (pos < max) {
       ch = state.src.charCodeAt(pos);
 
-      if (isSpace(ch)) {
-        if (ch === 0x09) {
-          offset += 4 - (offset + state.bsCount[nextLine]) % 4;
-        } else {
-          offset++;
-        }
+      if (ch === 0x09) {
+        offset += 4 - (offset + state.bsCount[nextLine]) % 4;
+      } else if (ch === 0x20) {
+        offset++;
       } else {
         break;
       }
@@ -5501,7 +6174,7 @@ module.exports = function list(state, startLine, endLine, silent) {
     if (markerCharCode !== state.src.charCodeAt(posAfterMarker - 1)) { break; }
   }
 
-  // Finilize list
+  // Finalize list
   if (isOrdered) {
     token = state.push('ordered_list_close', 'ol', -1);
   } else {
@@ -5580,8 +6253,6 @@ module.exports = function paragraph(state, startLine/*, endLine*/) {
 'use strict';
 
 
-var parseLinkDestination = require('../helpers/parse_link_destination');
-var parseLinkTitle       = require('../helpers/parse_link_title');
 var normalizeReference   = require('../common/utils').normalizeReference;
 var isSpace              = require('../common/utils').isSpace;
 
@@ -5607,6 +6278,9 @@ module.exports = function reference(state, startLine, _endLine, silent) {
       pos = state.bMarks[startLine] + state.tShift[startLine],
       max = state.eMarks[startLine],
       nextLine = startLine + 1;
+
+  // if it's indented more than 3 spaces, it should be a code block
+  if (state.sCount[startLine] - state.blkIndent >= 4) { return false; }
 
   if (state.src.charCodeAt(pos) !== 0x5B/* [ */) { return false; }
 
@@ -5685,7 +6359,7 @@ module.exports = function reference(state, startLine, _endLine, silent) {
 
   // [label]:   destination   'title'
   //            ^^^^^^^^^^^ parse this
-  res = parseLinkDestination(str, pos, max);
+  res = state.md.helpers.parseLinkDestination(str, pos, max);
   if (!res.ok) { return false; }
 
   href = state.md.normalizeLink(res.str);
@@ -5714,7 +6388,7 @@ module.exports = function reference(state, startLine, _endLine, silent) {
 
   // [label]:   destination   'title'
   //                          ^^^^^^^ parse this
-  res = parseLinkTitle(str, pos, max);
+  res = state.md.helpers.parseLinkTitle(str, pos, max);
   if (pos < max && start !== pos && res.ok) {
     title = res.str;
     pos = res.pos;
@@ -5775,7 +6449,7 @@ module.exports = function reference(state, startLine, _endLine, silent) {
   return true;
 };
 
-},{"../common/utils":21,"../helpers/parse_link_destination":23,"../helpers/parse_link_title":25}],45:[function(require,module,exports){
+},{"../common/utils":21}],45:[function(require,module,exports){
 // Parser state class
 
 'use strict';
@@ -6012,6 +6686,8 @@ module.exports = StateBlock;
 
 'use strict';
 
+var isSpace = require('../common/utils').isSpace;
+
 
 function getLine(state, line) {
   var pos = state.bMarks[line] + state.blkIndent,
@@ -6033,13 +6709,22 @@ function escapedSplit(str) {
   ch  = str.charCodeAt(pos);
 
   while (pos < max) {
-    if (ch === 0x60/* ` */ && (escapes % 2 === 0)) {
-      backTicked = !backTicked;
-      lastBackTick = pos;
+    if (ch === 0x60/* ` */) {
+      if (backTicked) {
+        // make \` close code sequence, but not open it;
+        // the reason is: `\` is correct code block
+        backTicked = false;
+        lastBackTick = pos;
+      } else if (escapes % 2 === 0) {
+        backTicked = true;
+        lastBackTick = pos;
+      }
     } else if (ch === 0x7c/* | */ && (escapes % 2 === 0) && !backTicked) {
       result.push(str.substring(lastPos, pos));
       lastPos = pos + 1;
-    } else if (ch === 0x5c/* \ */) {
+    }
+
+    if (ch === 0x5c/* \ */) {
       escapes++;
     } else {
       escapes = 0;
@@ -6067,23 +6752,35 @@ module.exports = function table(state, startLine, endLine, silent) {
   var ch, lineText, pos, i, nextLine, columns, columnCount, token,
       aligns, t, tableLines, tbodyLines;
 
-  // should have at least three lines
+  // should have at least two lines
   if (startLine + 2 > endLine) { return false; }
 
   nextLine = startLine + 1;
 
   if (state.sCount[nextLine] < state.blkIndent) { return false; }
 
-  // first character of the second line should be '|' or '-'
+  // if it's indented more than 3 spaces, it should be a code block
+  if (state.sCount[nextLine] - state.blkIndent >= 4) { return false; }
+
+  // first character of the second line should be '|', '-', ':',
+  // and no other characters are allowed but spaces;
+  // basically, this is the equivalent of /^[-:|][-:|\s]*$/ regexp
 
   pos = state.bMarks[nextLine] + state.tShift[nextLine];
   if (pos >= state.eMarks[nextLine]) { return false; }
 
-  ch = state.src.charCodeAt(pos);
+  ch = state.src.charCodeAt(pos++);
   if (ch !== 0x7C/* | */ && ch !== 0x2D/* - */ && ch !== 0x3A/* : */) { return false; }
 
+  while (pos < state.eMarks[nextLine]) {
+    ch = state.src.charCodeAt(pos);
+
+    if (ch !== 0x7C/* | */ && ch !== 0x2D/* - */ && ch !== 0x3A/* : */ && !isSpace(ch)) { return false; }
+
+    pos++;
+  }
+
   lineText = getLine(state, startLine + 1);
-  if (!/^[-:| ]+$/.test(lineText)) { return false; }
 
   columns = lineText.split('|');
   aligns = [];
@@ -6111,6 +6808,7 @@ module.exports = function table(state, startLine, endLine, silent) {
 
   lineText = getLine(state, startLine).trim();
   if (lineText.indexOf('|') === -1) { return false; }
+  if (state.sCount[startLine] - state.blkIndent >= 4) { return false; }
   columns = escapedSplit(lineText.replace(/^\||\|$/g, ''));
 
   // header row will define an amount of columns in the entire table,
@@ -6153,12 +6851,10 @@ module.exports = function table(state, startLine, endLine, silent) {
   for (nextLine = startLine + 2; nextLine < endLine; nextLine++) {
     if (state.sCount[nextLine] < state.blkIndent) { break; }
 
-    lineText = getLine(state, nextLine);
+    lineText = getLine(state, nextLine).trim();
     if (lineText.indexOf('|') === -1) { break; }
-
-    // keep spaces at beginning of line to indicate an empty first cell, but
-    // strip trailing whitespace
-    columns = escapedSplit(lineText.replace(/^\||\|\s*$/g, ''));
+    if (state.sCount[nextLine] - state.blkIndent >= 4) { break; }
+    columns = escapedSplit(lineText.replace(/^\||\|$/g, ''));
 
     token = state.push('tr_open', 'tr', 1);
     for (i = 0; i < columnCount; i++) {
@@ -6183,7 +6879,7 @@ module.exports = function table(state, startLine, endLine, silent) {
   return true;
 };
 
-},{}],47:[function(require,module,exports){
+},{"../common/utils":21}],47:[function(require,module,exports){
 'use strict';
 
 
@@ -6544,7 +7240,8 @@ function process_inlines(tokens, state) {
         lastChar = text.charCodeAt(t.index - 1);
       } else {
         for (j = i - 1; j >= 0; j--) {
-          if (tokens[j].type !== 'text') { continue; }
+          if (tokens[j].type === 'softbreak' || tokens[j].type === 'hardbreak') break; // lastChar defaults to 0x20
+          if (tokens[j].type !== 'text') continue;
 
           lastChar = tokens[j].content.charCodeAt(tokens[j].content.length - 1);
           break;
@@ -6560,7 +7257,8 @@ function process_inlines(tokens, state) {
         nextChar = text.charCodeAt(pos);
       } else {
         for (j = i + 1; j < tokens.length; j++) {
-          if (tokens[j].type !== 'text') { continue; }
+          if (tokens[j].type === 'softbreak' || tokens[j].type === 'hardbreak') break; // nextChar defaults to 0x20
+          if (tokens[j].type !== 'text') continue;
 
           nextChar = tokens[j].content.charCodeAt(0);
           break;
@@ -6944,7 +7642,7 @@ module.exports.postProcess = function emphasis(state) {
       delimiters = state.delimiters,
       max = state.delimiters.length;
 
-  for (i = 0; i < max; i++) {
+  for (i = max - 1; i >= 0; i--) {
     startDelim = delimiters[i];
 
     if (startDelim.marker !== 0x5F/* _ */ && startDelim.marker !== 0x2A/* * */) {
@@ -6958,16 +7656,16 @@ module.exports.postProcess = function emphasis(state) {
 
     endDelim = delimiters[startDelim.end];
 
-    // If the next delimiter has the same marker and is adjacent to this one,
+    // If the previous delimiter has the same marker and is adjacent to this one,
     // merge those into one strong delimiter.
     //
     // `<em><em>whatever</em></em>` -> `<strong>whatever</strong>`
     //
-    isStrong = i + 1 < max &&
-               delimiters[i + 1].end === startDelim.end - 1 &&
-               delimiters[i + 1].token === startDelim.token + 1 &&
-               delimiters[startDelim.end - 1].token === endDelim.token - 1 &&
-               delimiters[i + 1].marker === startDelim.marker;
+    isStrong = i > 0 &&
+               delimiters[i - 1].end === startDelim.end + 1 &&
+               delimiters[i - 1].token === startDelim.token - 1 &&
+               delimiters[startDelim.end + 1].token === endDelim.token + 1 &&
+               delimiters[i - 1].marker === startDelim.marker;
 
     ch = String.fromCharCode(startDelim.marker);
 
@@ -6986,9 +7684,9 @@ module.exports.postProcess = function emphasis(state) {
     token.content = '';
 
     if (isStrong) {
-      state.tokens[delimiters[i + 1].token].content = '';
-      state.tokens[delimiters[startDelim.end - 1].token].content = '';
-      i++;
+      state.tokens[delimiters[i - 1].token].content = '';
+      state.tokens[delimiters[startDelim.end + 1].token].content = '';
+      i--;
     }
   }
 };
@@ -7044,7 +7742,7 @@ module.exports = function entity(state, silent) {
 };
 
 },{"../common/entities":18,"../common/utils":21}],59:[function(require,module,exports){
-// Proceess escaped chars and hardbreaks
+// Process escaped chars and hardbreaks
 
 'use strict';
 
@@ -7151,9 +7849,6 @@ module.exports = function html_inline(state, silent) {
 
 'use strict';
 
-var parseLinkLabel       = require('../helpers/parse_link_label');
-var parseLinkDestination = require('../helpers/parse_link_destination');
-var parseLinkTitle       = require('../helpers/parse_link_title');
 var normalizeReference   = require('../common/utils').normalizeReference;
 var isSpace              = require('../common/utils').isSpace;
 
@@ -7180,7 +7875,7 @@ module.exports = function image(state, silent) {
   if (state.src.charCodeAt(state.pos + 1) !== 0x5B/* [ */) { return false; }
 
   labelStart = state.pos + 2;
-  labelEnd = parseLinkLabel(state, state.pos + 1, false);
+  labelEnd = state.md.helpers.parseLinkLabel(state, state.pos + 1, false);
 
   // parser failed to find ']', so it's not a valid link
   if (labelEnd < 0) { return false; }
@@ -7203,7 +7898,7 @@ module.exports = function image(state, silent) {
     // [link](  <href>  "title"  )
     //          ^^^^^^ parsing link destination
     start = pos;
-    res = parseLinkDestination(state.src, pos, state.posMax);
+    res = state.md.helpers.parseLinkDestination(state.src, pos, state.posMax);
     if (res.ok) {
       href = state.md.normalizeLink(res.str);
       if (state.md.validateLink(href)) {
@@ -7223,7 +7918,7 @@ module.exports = function image(state, silent) {
 
     // [link](  <href>  "title"  )
     //                  ^^^^^^^ parsing link title
-    res = parseLinkTitle(state.src, pos, state.posMax);
+    res = state.md.helpers.parseLinkTitle(state.src, pos, state.posMax);
     if (pos < max && start !== pos && res.ok) {
       title = res.str;
       pos = res.pos;
@@ -7251,7 +7946,7 @@ module.exports = function image(state, silent) {
 
     if (pos < max && state.src.charCodeAt(pos) === 0x5B/* [ */) {
       start = pos + 1;
-      pos = parseLinkLabel(state, pos);
+      pos = state.md.helpers.parseLinkLabel(state, pos);
       if (pos >= 0) {
         label = state.src.slice(start, pos++);
       } else {
@@ -7303,14 +7998,11 @@ module.exports = function image(state, silent) {
   return true;
 };
 
-},{"../common/utils":21,"../helpers/parse_link_destination":23,"../helpers/parse_link_label":24,"../helpers/parse_link_title":25}],62:[function(require,module,exports){
+},{"../common/utils":21}],62:[function(require,module,exports){
 // Process [link](<to> "stuff")
 
 'use strict';
 
-var parseLinkLabel       = require('../helpers/parse_link_label');
-var parseLinkDestination = require('../helpers/parse_link_destination');
-var parseLinkTitle       = require('../helpers/parse_link_title');
 var normalizeReference   = require('../common/utils').normalizeReference;
 var isSpace              = require('../common/utils').isSpace;
 
@@ -7329,12 +8021,13 @@ module.exports = function link(state, silent) {
       href = '',
       oldPos = state.pos,
       max = state.posMax,
-      start = state.pos;
+      start = state.pos,
+      parseReference = true;
 
   if (state.src.charCodeAt(state.pos) !== 0x5B/* [ */) { return false; }
 
   labelStart = state.pos + 1;
-  labelEnd = parseLinkLabel(state, state.pos, true);
+  labelEnd = state.md.helpers.parseLinkLabel(state, state.pos, true);
 
   // parser failed to find ']', so it's not a valid link
   if (labelEnd < 0) { return false; }
@@ -7344,6 +8037,9 @@ module.exports = function link(state, silent) {
     //
     // Inline link
     //
+
+    // might have found a valid shortcut link, disable reference parsing
+    parseReference = false;
 
     // [link](  <href>  "title"  )
     //        ^^ skipping these spaces
@@ -7357,7 +8053,7 @@ module.exports = function link(state, silent) {
     // [link](  <href>  "title"  )
     //          ^^^^^^ parsing link destination
     start = pos;
-    res = parseLinkDestination(state.src, pos, state.posMax);
+    res = state.md.helpers.parseLinkDestination(state.src, pos, state.posMax);
     if (res.ok) {
       href = state.md.normalizeLink(res.str);
       if (state.md.validateLink(href)) {
@@ -7377,7 +8073,7 @@ module.exports = function link(state, silent) {
 
     // [link](  <href>  "title"  )
     //                  ^^^^^^^ parsing link title
-    res = parseLinkTitle(state.src, pos, state.posMax);
+    res = state.md.helpers.parseLinkTitle(state.src, pos, state.posMax);
     if (pos < max && start !== pos && res.ok) {
       title = res.str;
       pos = res.pos;
@@ -7393,11 +8089,13 @@ module.exports = function link(state, silent) {
     }
 
     if (pos >= max || state.src.charCodeAt(pos) !== 0x29/* ) */) {
-      state.pos = oldPos;
-      return false;
+      // parsing a valid shortcut link failed, fallback to reference
+      parseReference = true;
     }
     pos++;
-  } else {
+  }
+
+  if (parseReference) {
     //
     // Link reference
     //
@@ -7405,7 +8103,7 @@ module.exports = function link(state, silent) {
 
     if (pos < max && state.src.charCodeAt(pos) === 0x5B/* [ */) {
       start = pos + 1;
-      pos = parseLinkLabel(state, pos);
+      pos = state.md.helpers.parseLinkLabel(state, pos);
       if (pos >= 0) {
         label = state.src.slice(start, pos++);
       } else {
@@ -7452,10 +8150,13 @@ module.exports = function link(state, silent) {
   return true;
 };
 
-},{"../common/utils":21,"../helpers/parse_link_destination":23,"../helpers/parse_link_label":24,"../helpers/parse_link_title":25}],63:[function(require,module,exports){
+},{"../common/utils":21}],63:[function(require,module,exports){
 // Proceess '\n'
 
 'use strict';
+
+var isSpace = require('../common/utils').isSpace;
+
 
 module.exports = function newline(state, silent) {
   var pmax, max, pos = state.pos;
@@ -7487,13 +8188,13 @@ module.exports = function newline(state, silent) {
   pos++;
 
   // skip heading spaces for next line
-  while (pos < max && state.src.charCodeAt(pos) === 0x20) { pos++; }
+  while (pos < max && isSpace(state.src.charCodeAt(pos))) { pos++; }
 
   state.pos = pos;
   return true;
 };
 
-},{}],64:[function(require,module,exports){
+},{"../common/utils":21}],64:[function(require,module,exports){
 // Inline parser state
 
 'use strict';
@@ -9183,11 +9884,11 @@ module.exports = urlParse;
 },{}],75:[function(require,module,exports){
 module.exports=/[\0-\x1F\x7F-\x9F]/
 },{}],76:[function(require,module,exports){
-module.exports=/[\xAD\u0600-\u0605\u061C\u06DD\u070F\u08E2\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF\uFFF9-\uFFFB]|\uD804\uDCBD|\uD82F[\uDCA0-\uDCA3]|\uD834[\uDD73-\uDD7A]|\uDB40[\uDC01\uDC20-\uDC7F]/
+module.exports=/[\xAD\u0600-\u0605\u061C\u06DD\u070F\u08E2\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF\uFFF9-\uFFFB]|\uD804[\uDCBD\uDCCD]|\uD82F[\uDCA0-\uDCA3]|\uD834[\uDD73-\uDD7A]|\uDB40[\uDC01\uDC20-\uDC7F]/
 },{}],77:[function(require,module,exports){
-module.exports=/[!-#%-\*,-/:;\?@\[-\]_\{\}\xA1\xA7\xAB\xB6\xB7\xBB\xBF\u037E\u0387\u055A-\u055F\u0589\u058A\u05BE\u05C0\u05C3\u05C6\u05F3\u05F4\u0609\u060A\u060C\u060D\u061B\u061E\u061F\u066A-\u066D\u06D4\u0700-\u070D\u07F7-\u07F9\u0830-\u083E\u085E\u0964\u0965\u0970\u0AF0\u0DF4\u0E4F\u0E5A\u0E5B\u0F04-\u0F12\u0F14\u0F3A-\u0F3D\u0F85\u0FD0-\u0FD4\u0FD9\u0FDA\u104A-\u104F\u10FB\u1360-\u1368\u1400\u166D\u166E\u169B\u169C\u16EB-\u16ED\u1735\u1736\u17D4-\u17D6\u17D8-\u17DA\u1800-\u180A\u1944\u1945\u1A1E\u1A1F\u1AA0-\u1AA6\u1AA8-\u1AAD\u1B5A-\u1B60\u1BFC-\u1BFF\u1C3B-\u1C3F\u1C7E\u1C7F\u1CC0-\u1CC7\u1CD3\u2010-\u2027\u2030-\u2043\u2045-\u2051\u2053-\u205E\u207D\u207E\u208D\u208E\u2308-\u230B\u2329\u232A\u2768-\u2775\u27C5\u27C6\u27E6-\u27EF\u2983-\u2998\u29D8-\u29DB\u29FC\u29FD\u2CF9-\u2CFC\u2CFE\u2CFF\u2D70\u2E00-\u2E2E\u2E30-\u2E44\u3001-\u3003\u3008-\u3011\u3014-\u301F\u3030\u303D\u30A0\u30FB\uA4FE\uA4FF\uA60D-\uA60F\uA673\uA67E\uA6F2-\uA6F7\uA874-\uA877\uA8CE\uA8CF\uA8F8-\uA8FA\uA8FC\uA92E\uA92F\uA95F\uA9C1-\uA9CD\uA9DE\uA9DF\uAA5C-\uAA5F\uAADE\uAADF\uAAF0\uAAF1\uABEB\uFD3E\uFD3F\uFE10-\uFE19\uFE30-\uFE52\uFE54-\uFE61\uFE63\uFE68\uFE6A\uFE6B\uFF01-\uFF03\uFF05-\uFF0A\uFF0C-\uFF0F\uFF1A\uFF1B\uFF1F\uFF20\uFF3B-\uFF3D\uFF3F\uFF5B\uFF5D\uFF5F-\uFF65]|\uD800[\uDD00-\uDD02\uDF9F\uDFD0]|\uD801\uDD6F|\uD802[\uDC57\uDD1F\uDD3F\uDE50-\uDE58\uDE7F\uDEF0-\uDEF6\uDF39-\uDF3F\uDF99-\uDF9C]|\uD804[\uDC47-\uDC4D\uDCBB\uDCBC\uDCBE-\uDCC1\uDD40-\uDD43\uDD74\uDD75\uDDC5-\uDDC9\uDDCD\uDDDB\uDDDD-\uDDDF\uDE38-\uDE3D\uDEA9]|\uD805[\uDC4B-\uDC4F\uDC5B\uDC5D\uDCC6\uDDC1-\uDDD7\uDE41-\uDE43\uDE60-\uDE6C\uDF3C-\uDF3E]|\uD807[\uDC41-\uDC45\uDC70\uDC71]|\uD809[\uDC70-\uDC74]|\uD81A[\uDE6E\uDE6F\uDEF5\uDF37-\uDF3B\uDF44]|\uD82F\uDC9F|\uD836[\uDE87-\uDE8B]|\uD83A[\uDD5E\uDD5F]/
+module.exports=/[!-#%-\*,-\/:;\?@\[-\]_\{\}\xA1\xA7\xAB\xB6\xB7\xBB\xBF\u037E\u0387\u055A-\u055F\u0589\u058A\u05BE\u05C0\u05C3\u05C6\u05F3\u05F4\u0609\u060A\u060C\u060D\u061B\u061E\u061F\u066A-\u066D\u06D4\u0700-\u070D\u07F7-\u07F9\u0830-\u083E\u085E\u0964\u0965\u0970\u09FD\u0A76\u0AF0\u0C84\u0DF4\u0E4F\u0E5A\u0E5B\u0F04-\u0F12\u0F14\u0F3A-\u0F3D\u0F85\u0FD0-\u0FD4\u0FD9\u0FDA\u104A-\u104F\u10FB\u1360-\u1368\u1400\u166D\u166E\u169B\u169C\u16EB-\u16ED\u1735\u1736\u17D4-\u17D6\u17D8-\u17DA\u1800-\u180A\u1944\u1945\u1A1E\u1A1F\u1AA0-\u1AA6\u1AA8-\u1AAD\u1B5A-\u1B60\u1BFC-\u1BFF\u1C3B-\u1C3F\u1C7E\u1C7F\u1CC0-\u1CC7\u1CD3\u2010-\u2027\u2030-\u2043\u2045-\u2051\u2053-\u205E\u207D\u207E\u208D\u208E\u2308-\u230B\u2329\u232A\u2768-\u2775\u27C5\u27C6\u27E6-\u27EF\u2983-\u2998\u29D8-\u29DB\u29FC\u29FD\u2CF9-\u2CFC\u2CFE\u2CFF\u2D70\u2E00-\u2E2E\u2E30-\u2E4E\u3001-\u3003\u3008-\u3011\u3014-\u301F\u3030\u303D\u30A0\u30FB\uA4FE\uA4FF\uA60D-\uA60F\uA673\uA67E\uA6F2-\uA6F7\uA874-\uA877\uA8CE\uA8CF\uA8F8-\uA8FA\uA8FC\uA92E\uA92F\uA95F\uA9C1-\uA9CD\uA9DE\uA9DF\uAA5C-\uAA5F\uAADE\uAADF\uAAF0\uAAF1\uABEB\uFD3E\uFD3F\uFE10-\uFE19\uFE30-\uFE52\uFE54-\uFE61\uFE63\uFE68\uFE6A\uFE6B\uFF01-\uFF03\uFF05-\uFF0A\uFF0C-\uFF0F\uFF1A\uFF1B\uFF1F\uFF20\uFF3B-\uFF3D\uFF3F\uFF5B\uFF5D\uFF5F-\uFF65]|\uD800[\uDD00-\uDD02\uDF9F\uDFD0]|\uD801\uDD6F|\uD802[\uDC57\uDD1F\uDD3F\uDE50-\uDE58\uDE7F\uDEF0-\uDEF6\uDF39-\uDF3F\uDF99-\uDF9C]|\uD803[\uDF55-\uDF59]|\uD804[\uDC47-\uDC4D\uDCBB\uDCBC\uDCBE-\uDCC1\uDD40-\uDD43\uDD74\uDD75\uDDC5-\uDDC8\uDDCD\uDDDB\uDDDD-\uDDDF\uDE38-\uDE3D\uDEA9]|\uD805[\uDC4B-\uDC4F\uDC5B\uDC5D\uDCC6\uDDC1-\uDDD7\uDE41-\uDE43\uDE60-\uDE6C\uDF3C-\uDF3E]|\uD806[\uDC3B\uDE3F-\uDE46\uDE9A-\uDE9C\uDE9E-\uDEA2]|\uD807[\uDC41-\uDC45\uDC70\uDC71\uDEF7\uDEF8]|\uD809[\uDC70-\uDC74]|\uD81A[\uDE6E\uDE6F\uDEF5\uDF37-\uDF3B\uDF44]|\uD81B[\uDE97-\uDE9A]|\uD82F\uDC9F|\uD836[\uDE87-\uDE8B]|\uD83A[\uDD5E\uDD5F]/
 },{}],78:[function(require,module,exports){
-module.exports=/[ \xA0\u1680\u2000-\u200A\u202F\u205F\u3000]/
+module.exports=/[ \xA0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]/
 },{}],79:[function(require,module,exports){
 'use strict';
 
